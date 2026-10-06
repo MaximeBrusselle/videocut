@@ -12,6 +12,7 @@ export interface AppState {
   songStart: number;
   /** Crop window x in source pixels. */
   cropX: number;
+  cropEnabled: boolean;
   playhead: number;
   busy: boolean;
 }
@@ -26,6 +27,7 @@ export const store = createStore<AppState>({
   outPoint: 0,
   songStart: 0,
   cropX: 0,
+  cropEnabled: true,
   playhead: 0,
   busy: false,
 });

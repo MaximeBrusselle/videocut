@@ -54,7 +54,7 @@ function render(s: AppState): void {
   $('out-readout').textContent = formatMmSs(s.outPoint, 2);
   $('len-readout').textContent = s.clipPath ? `Length ${formatMmSs(s.outPoint - s.inPoint, 2)}` : '';
 
-  crop.update(v, s.cropX);
+  crop.update(v, s.cropX, s.cropEnabled);
   timeline.update(s.clipDuration, s.inPoint, s.outPoint, s.playhead);
   player.setRange(s.inPoint, s.outPoint);
   player.setSongStart(s.songStart);
@@ -170,6 +170,7 @@ async function runExport(): Promise<void> {
     outPoint: s.outPoint,
     songStart: s.songStart,
     cropX: s.cropX,
+    cropEnabled: s.cropEnabled,
   };
   const errors = validateRequest(request);
   if (errors.length > 0) {
@@ -199,6 +200,9 @@ async function runExport(): Promise<void> {
 // ---- controls --------------------------------------------------------------
 
 crop.onChange = (cropX) => store.set({ cropX });
+$<HTMLInputElement>('crop-enabled').addEventListener('change', (event) =>
+  store.set({ cropEnabled: (event.target as HTMLInputElement).checked }),
+);
 
 timeline.onSeek = (time) => player.seek(time);
 timeline.onIn = (time) => {
@@ -217,9 +221,26 @@ function setOutAtPlayhead(): void {
   timeline.onOut(player.time);
 }
 
+/** Moves one frame (or one second with `large`) backwards or forwards. */
+function stepFrames(direction: 1 | -1, large: boolean): void {
+  const fps = store.get().video?.fps || 30;
+  player.step(direction * (large ? Math.round(fps) : 1), fps);
+}
+
+const iconPlay = $('icon-play');
+const iconPause = $('icon-pause');
+player.onPlayState((playing) => {
+  iconPlay.hidden = playing;
+  iconPause.hidden = !playing;
+});
+
 $('open-video').addEventListener('click', () => void chooseClip());
 $('open-song').addEventListener('click', () => void chooseSong());
 $('play').addEventListener('click', () => player.toggle());
+$('btn-start').addEventListener('click', () => player.jumpToIn());
+$('btn-end').addEventListener('click', () => player.jumpToOut());
+$('btn-back').addEventListener('click', () => stepFrames(-1, false));
+$('btn-forward').addEventListener('click', () => stepFrames(1, false));
 $('set-in').addEventListener('click', setInAtPlayhead);
 $('set-out').addEventListener('click', setOutAtPlayhead);
 $('export').addEventListener('click', () => void runExport());
@@ -238,13 +259,18 @@ songStartInput.addEventListener('change', () => {
 });
 
 window.addEventListener('keydown', (event) => {
-  if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
   if (event.target instanceof HTMLInputElement && event.target.type === 'text') return;
+  const arrow = event.key === 'ArrowLeft' || event.key === 'ArrowRight';
+  if (event.repeat && !arrow) return;
   if (event.code === 'Space') {
     event.preventDefault();
     player.toggle();
   } else if (store.get().clipPath === null) {
     return;
+  } else if (arrow) {
+    event.preventDefault();
+    stepFrames(event.key === 'ArrowLeft' ? -1 : 1, event.shiftKey);
   } else if (event.key === 'i' || event.key === 'I') {
     setInAtPlayhead();
   } else if (event.key === 'o' || event.key === 'O') {

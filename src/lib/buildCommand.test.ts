@@ -22,6 +22,7 @@ const base: ExportRequest = {
   outPoint: 4,
   songStart: 2,
   cropX: 100,
+  cropEnabled: true,
 };
 
 describe('planDuration', () => {
@@ -73,6 +74,13 @@ describe('buildExportArgs', () => {
     expect(buildExportArgs(base)).not.toContain('-colorspace');
   });
 
+  it('keeps the original frame (no crop, no 1080x1920 scale) when cropping is off', () => {
+    const args = buildExportArgs({ ...base, cropEnabled: false });
+    expect(args[args.indexOf('-vf') + 1]).toBe('scale=trunc(iw/2)*2:trunc(ih/2)*2');
+    expect(args.join(' ')).not.toContain('crop=');
+    expect(args.join(' ')).not.toContain('1080:1920');
+  });
+
   it('clamps the crop position inside the frame', () => {
     const args = buildExportArgs({ ...base, cropX: 5000 });
     expect(args[args.indexOf('-vf') + 1]).toBe('crop=606:ih:1314:0,scale=1080:1920:flags=lanczos,setsar=1');
@@ -86,6 +94,10 @@ describe('validateRequest', () => {
   it('rejects sources that are not wider than 9:16', () => {
     const errors = validateRequest({ ...base, video: { ...video, width: 600, height: 1080 } });
     expect(errors.join(' ')).toMatch(/not wider than 9:16/);
+  });
+  it('accepts a portrait source when cropping is off', () => {
+    const portrait = { ...base, cropEnabled: false, video: { ...video, width: 600, height: 1080 } };
+    expect(validateRequest(portrait)).toEqual([]);
   });
   it('rejects out <= in', () => {
     expect(validateRequest({ ...base, outPoint: 1 }).join(' ')).toMatch(/out point/);

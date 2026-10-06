@@ -61,6 +61,7 @@ describe.skipIf(!toolsAvailable)('export smoke test', () => {
       outPoint: 4,
       songStart: 2,
       cropX: 100,
+      cropEnabled: true,
       ...overrides,
     };
   }
@@ -79,6 +80,15 @@ describe.skipIf(!toolsAvailable)('export smoke test', () => {
     expect(audio?.codec_name).toBe('aac');
     expect(info.streams).toHaveLength(2);
     expect(Math.abs(Number(info.format.duration) - 3)).toBeLessThan(0.1);
+  });
+
+  it('keeps the source resolution when cropping is off', () => {
+    const output = join(dir, 'nocrop.mp4');
+    execFileSync('ffmpeg', buildExportArgs(request(output, { cropEnabled: false })));
+
+    const video = probe(output).streams.find((s) => s.codec_type === 'video');
+    expect(video?.width).toBe(1920);
+    expect(video?.height).toBe(1080);
   });
 
   it('caps the output to the remaining song length', () => {

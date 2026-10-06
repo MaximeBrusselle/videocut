@@ -8,6 +8,7 @@ export class CropOverlay {
   private box = $('crop');
   private video: VideoInfo | null = null;
   private cropX = 0;
+  private enabled = true;
 
   /** Called with the new crop x (source pixels, already clamped) while dragging. */
   onChange: (cropX: number) => void = () => {};
@@ -29,9 +30,10 @@ export class CropOverlay {
     });
   }
 
-  update(video: VideoInfo | null, cropX: number): void {
+  update(video: VideoInfo | null, cropX: number, enabled: boolean): void {
     this.video = video;
     this.cropX = cropX;
+    this.enabled = enabled;
     this.layout();
   }
 
@@ -40,7 +42,7 @@ export class CropOverlay {
   }
 
   private layout(): void {
-    if (!this.video) {
+    if (!this.video || !this.enabled) {
       this.box.hidden = true;
       return;
     }

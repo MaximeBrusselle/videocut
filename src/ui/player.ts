@@ -13,6 +13,7 @@ export class Player {
   private previewSong = false;
   private songUsable = false;
   private listeners: Array<(time: number) => void> = [];
+  private playListeners: Array<(playing: boolean) => void> = [];
 
   /** Called when the webview cannot decode the chosen song. */
   onSongError: () => void = () => {};
@@ -21,8 +22,12 @@ export class Player {
     this.video.addEventListener('play', () => {
       this.syncAudio();
       this.loop();
+      this.emitPlayState();
     });
-    this.video.addEventListener('pause', () => this.audio.pause());
+    this.video.addEventListener('pause', () => {
+      this.audio.pause();
+      this.emitPlayState();
+    });
     this.video.addEventListener('ended', () => this.seek(this.inPoint));
     this.video.addEventListener('seeked', () => {
       this.emit();
@@ -36,6 +41,15 @@ export class Player {
 
   onTime(callback: (time: number) => void): void {
     this.listeners.push(callback);
+  }
+
+  /** Called with `true` when playback starts and `false` when it pauses or stops. */
+  onPlayState(callback: (playing: boolean) => void): void {
+    this.playListeners.push(callback);
+  }
+
+  private emitPlayState(): void {
+    for (const callback of this.playListeners) callback(!this.video.paused);
   }
 
   private emit(): void {
@@ -110,6 +124,26 @@ export class Player {
     } else {
       this.video.pause();
     }
+  }
+
+  /** Pauses and moves by whole frames (negative = back), landing in the middle of the target frame. */
+  step(frames: number, fps: number): void {
+    if (!this.loaded) return;
+    this.video.pause();
+    const rate = fps > 0 ? fps : 30;
+    const index = Math.floor(this.video.currentTime * rate + 0.001);
+    const last = Number.isFinite(this.video.duration) ? this.video.duration - 0.5 / rate : Infinity;
+    this.seek(Math.min(Math.max((index + frames + 0.5) / rate, 0), last));
+  }
+
+  jumpToIn(): void {
+    this.video.pause();
+    this.seek(this.inPoint);
+  }
+
+  jumpToOut(): void {
+    this.video.pause();
+    this.seek(this.outPoint);
   }
 
   seek(time: number): void {

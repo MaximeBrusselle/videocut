@@ -19,8 +19,18 @@
       </section>
 
       <section class="row">
-        <button id="play">Play / Pause (Space)</button>
+        <div class="transport">
+          <button id="btn-start" title="Jump to in point" aria-label="Jump to in point"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
+          <button id="btn-back" title="Previous frame (Left arrow; Shift = 1 second)" aria-label="Previous frame"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg></button>
+          <button id="play" class="play" title="Play / Pause (Space)" aria-label="Play or pause">
+            <svg id="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+            <svg id="icon-pause" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+          </button>
+          <button id="btn-forward" title="Next frame (Right arrow; Shift = 1 second)" aria-label="Next frame"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.6 16.6 10 18l6-6-6-6-1.4 1.4 4.6 4.6z"/></svg></button>
+          <button id="btn-end" title="Jump to out point" aria-label="Jump to out point"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg></button>
+        </div>
         <span id="time-readout">0:00.0</span>
+        <label><input id="crop-enabled" type="checkbox" checked /> Crop to 9:16</label>
       </section>
 
       <section>

@@ -14,6 +14,8 @@ export interface ExportRequest {
   songStart: number;
   /** Crop window x in source pixels. */
   cropX: number;
+  /** When false the original frame is kept: no crop and no 1080x1920 scale. */
+  cropEnabled: boolean;
 }
 
 export interface DurationPlan {
@@ -36,7 +38,7 @@ export function planDuration(
 /** Human-readable problems that make an export impossible; empty when fine. */
 export function validateRequest(req: ExportRequest): string[] {
   const errors: string[] = [];
-  if (req.video.width <= cropWidth(req.video.height)) {
+  if (req.cropEnabled && req.video.width <= cropWidth(req.video.height)) {
     errors.push('The video is not wider than 9:16, so there is nothing to crop.');
   }
   if (req.outPoint <= req.inPoint) {
@@ -51,18 +53,24 @@ export function validateRequest(req: ExportRequest): string[] {
   return errors;
 }
 
+/** Crop to 9:16 and scale to 1080x1920, or only guard against odd sizes (H.264 needs even dimensions). */
+function videoFilter(req: ExportRequest): string {
+  if (!req.cropEnabled) return 'scale=trunc(iw/2)*2:trunc(ih/2)*2';
+  const cw = cropWidth(req.video.height);
+  const x = clampCropX(req.cropX, req.video.width, req.video.height);
+  return `crop=${cw}:ih:${x}:0,scale=1080:1920:flags=lanczos,setsar=1`;
+}
+
 /** Full ffmpeg argument list (without the `ffmpeg` executable itself). */
 export function buildExportArgs(req: ExportRequest): string[] {
   const { duration } = planDuration(req.inPoint, req.outPoint, req.songStart, req.songDuration);
-  const cw = cropWidth(req.video.height);
-  const x = clampCropX(req.cropX, req.video.width, req.video.height);
 
   const args = [
     '-y', '-hide_banner', '-loglevel', 'error', '-progress', 'pipe:1', '-nostats',
     '-ss', formatSeconds(req.inPoint), '-i', req.clipPath,
     '-ss', formatSeconds(req.songStart), '-i', req.songPath,
     '-map', '0:v:0', '-map', '1:a:0',
-    '-vf', `crop=${cw}:ih:${x}:0,scale=1080:1920:flags=lanczos,setsar=1`,
+    '-vf', videoFilter(req),
     '-c:v', 'libx264', '-crf', '15', '-preset', 'slow', '-pix_fmt', 'yuv420p',
   ];
 
