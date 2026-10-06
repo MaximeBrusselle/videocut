@@ -100,6 +100,7 @@ pub fn run_export(
         Ok(())
     } else {
         let tail_text = tail.lock().unwrap().iter().cloned().collect::<Vec<_>>().join("\n");
+        let _ = std::fs::remove_file(output);
         Err(format!("ffmpeg failed ({status}):\n{tail_text}"))
     }
 }

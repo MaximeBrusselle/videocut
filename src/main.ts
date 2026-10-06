@@ -80,10 +80,15 @@ player.onSongError = () =>
 
 // ---- opening files ---------------------------------------------------------
 
+let openCounter = 0;
+
 async function openClip(path: string): Promise<void> {
+  if (store.get().busy) return;
+  const id = ++openCounter;
   setStatus('Reading video…');
   try {
     const info = await probeMedia(path);
+    if (id !== openCounter) return;
     if (!info.video) throw new Error('No video stream found in that file.');
     const v = info.video;
     store.set({
@@ -95,15 +100,24 @@ async function openClip(path: string): Promise<void> {
       cropX: centeredCropX(v.width, v.height),
       playhead: 0,
     });
-    await player.load(path, (text) => setStatus(text));
+    await player.load(path, (text) => {
+      if (id === openCounter) setStatus(text);
+    });
+    if (id !== openCounter) return;
     player.seek(0);
     if (statusEl.textContent === 'Reading video…') setStatus('');
+    if (v.colorTransfer === 'arib-std-b67' || v.colorTransfer === 'smpte2084') {
+      setStatus(
+        'HDR footage detected: the export is 8-bit SDR, so colours may look flatter than the original.',
+      );
+    }
   } catch (error) {
-    setStatus(errorText(error), true);
+    if (id === openCounter) setStatus(errorText(error), true);
   }
 }
 
 async function chooseClip(): Promise<void> {
+  if (store.get().busy) return;
   const picked = await open({
     multiple: false,
     filters: [{ name: 'Video', extensions: ['mp4', 'mov', 'mkv', 'avi', 'webm', 'm4v'] }],
@@ -112,6 +126,7 @@ async function chooseClip(): Promise<void> {
 }
 
 async function chooseSong(): Promise<void> {
+  if (store.get().busy) return;
   const picked = await open({
     multiple: false,
     filters: [{ name: 'Audio', extensions: ['mp3', 'm4a', 'aac', 'wav', 'flac', 'ogg', 'opus'] }],
@@ -223,10 +238,13 @@ songStartInput.addEventListener('change', () => {
 });
 
 window.addEventListener('keydown', (event) => {
+  if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
   if (event.target instanceof HTMLInputElement && event.target.type === 'text') return;
   if (event.code === 'Space') {
     event.preventDefault();
     player.toggle();
+  } else if (store.get().clipPath === null) {
+    return;
   } else if (event.key === 'i' || event.key === 'I') {
     setInAtPlayhead();
   } else if (event.key === 'o' || event.key === 'O') {

@@ -82,6 +82,7 @@ pub fn run() {
         .expect("error while building tauri application")
         .run(|app, event| {
             if let tauri::RunEvent::Exit = event {
+                ffmpeg::cancel(&app.state::<ExportState>());
                 remove_proxy(app);
             }
         });
