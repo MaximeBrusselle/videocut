@@ -148,7 +148,13 @@ function render(s: AppState): void {
   player.setSongStart(s.songStart);
   const mixLength = planDuration(s.inPoint, s.outPoint, s.songStart, s.songDuration).duration;
   player.setSongMix(s.songVolume, s.songFadeIn, s.songFadeOut, Math.max(mixLength, 0));
-  waveform.update(s.songDuration, s.songStart, s.outPoint - s.inPoint);
+  const inRange = s.clipPath !== null && s.playhead >= s.inPoint && s.playhead <= s.outPoint;
+  waveform.update(
+    s.songDuration,
+    s.songStart,
+    s.outPoint - s.inPoint,
+    inRange ? s.songStart + (s.playhead - s.inPoint) : null,
+  );
   if (document.activeElement !== songStartInput) songStartInput.value = formatMmSs(s.songStart);
 
   volumeInput.value = String(Math.round(s.songVolume * 100));

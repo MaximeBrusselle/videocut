@@ -9,6 +9,7 @@ export class Waveform {
   private wrap = $('wave');
   private canvas = $<HTMLCanvasElement>('wave-canvas');
   private win = $('wave-window');
+  private playhead = $('wave-playhead');
   private peaks: number[] | null = null;
   private loadId = 0;
   private songDuration = 0;
@@ -65,7 +66,11 @@ export class Waveform {
     this.draw();
   }
 
-  update(songDuration: number, songStart: number, windowLength: number): void {
+  /** `position` is the song time (seconds) currently playing, or null to hide the indicator. */
+  update(songDuration: number, songStart: number, windowLength: number, position: number | null): void {
+    const showPlayhead = position !== null && songDuration > 0 && position <= songDuration;
+    this.playhead.hidden = !showPlayhead;
+    if (showPlayhead) this.playhead.style.left = `${(position / songDuration) * 100}%`;
     this.wrap.hidden = songDuration <= 0;
     this.songDuration = songDuration;
     this.songStart = songStart;
