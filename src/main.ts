@@ -61,7 +61,7 @@ const presetSelect = $<HTMLSelectElement>('preset');
 const codecSelect = $<HTMLSelectElement>('codec');
 const resolutionSelect = $<HTMLSelectElement>('resolution');
 const qualitySelect = $<HTMLSelectElement>('quality');
-const audioSelect = $<HTMLSelectElement>('audio');
+const audioSelect = $<HTMLSelectElement>('audio-option');
 const exportMenus = [presetSelect, codecSelect, resolutionSelect, qualitySelect, audioSelect];
 
 function addOptions(select: HTMLSelectElement | HTMLOptGroupElement, items: Array<[string, string]>): void {
