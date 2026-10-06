@@ -2,10 +2,59 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Videocut</title>
+    <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
-    <p>Videocut</p>
+    <main id="app">
+      <section class="row">
+        <button id="open-video">Open video…</button>
+        <span id="clip-info">Drop a video here or click Open</span>
+      </section>
+
+      <section id="stage">
+        <video id="video" muted playsinline></video>
+        <div id="crop" hidden></div>
+      </section>
+
+      <section class="row">
+        <button id="play">Play / Pause (Space)</button>
+        <span id="time-readout">0:00.0</span>
+      </section>
+
+      <section>
+        <div id="track">
+          <div id="range"></div>
+          <div id="handle-in" class="handle"></div>
+          <div id="handle-out" class="handle"></div>
+          <div id="playhead"></div>
+        </div>
+        <div class="row">
+          <button id="set-in">Set in (I)</button>
+          <span id="in-readout">0:00.00</span>
+          <button id="set-out">Set out (O)</button>
+          <span id="out-readout">0:00.00</span>
+          <span id="len-readout"></span>
+        </div>
+      </section>
+
+      <section class="row">
+        <button id="open-song">Choose song…</button>
+        <span id="song-name">No song chosen</span>
+        <label>Start at <input id="song-start" value="0:00" size="6" /></label>
+        <label><input id="preview-song" type="checkbox" /> Preview with song</label>
+      </section>
+      <p id="song-warning" class="warning" hidden></p>
+
+      <section class="row">
+        <button id="export" class="primary">Export…</button>
+        <button id="cancel" hidden>Cancel</button>
+        <progress id="progress" max="100" value="0" hidden></progress>
+      </section>
+      <p id="status"></p>
+    </main>
+    <audio id="audio"></audio>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
