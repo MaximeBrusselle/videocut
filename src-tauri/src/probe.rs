@@ -24,6 +24,19 @@ struct RawStream {
     color_space: Option<String>,
     color_primaries: Option<String>,
     color_transfer: Option<String>,
+    #[serde(default)]
+    side_data_list: Vec<RawSideData>,
+    disposition: Option<RawDisposition>,
+}
+
+#[derive(Deserialize)]
+struct RawSideData {
+    rotation: Option<f64>,
+}
+
+#[derive(Deserialize)]
+struct RawDisposition {
+    attached_pic: Option<u8>,
 }
 
 #[derive(Serialize)]
@@ -80,7 +93,10 @@ pub fn parse_probe(json: &str) -> Result<MediaInfo, String> {
     let video = raw
         .streams
         .into_iter()
-        .find(|s| s.codec_type.as_deref() == Some("video"))
+        .find(|s| {
+            s.codec_type.as_deref() == Some("video")
+                && s.disposition.as_ref().and_then(|d| d.attached_pic) != Some(1)
+        })
         .and_then(|s| {
             let fps = s
                 .avg_frame_rate
@@ -89,9 +105,17 @@ pub fn parse_probe(json: &str) -> Result<MediaInfo, String> {
                 .filter(|r| *r > 0.0)
                 .or_else(|| s.r_frame_rate.as_deref().map(parse_rate))
                 .unwrap_or(0.0);
+            // ffprobe reports the coded size; ffmpeg and browsers auto-rotate by the display matrix.
+            let rotated = s
+                .side_data_list
+                .iter()
+                .find_map(|d| d.rotation)
+                .is_some_and(|r| r.round().rem_euclid(180.0) == 90.0);
+            let (width, height) = (s.width?, s.height?);
+            let (width, height) = if rotated { (height, width) } else { (width, height) };
             Some(VideoInfo {
-                width: s.width?,
-                height: s.height?,
+                width,
+                height,
                 fps,
                 codec: s.codec_name.unwrap_or_default(),
                 color_space: known(s.color_space),
@@ -151,6 +175,49 @@ mod tests {
     #[test]
     fn audio_only_file_has_no_video() {
         let json = r#"{"streams":[{"codec_type":"audio","codec_name":"mp3"}],"format":{"duration":"3.0"}}"#;
+        let info = parse_probe(json).unwrap();
+        assert!(info.video.is_none());
+        assert!(info.has_audio);
+    }
+
+    fn video_sample(extra: &str) -> String {
+        format!(
+            r#"{{"streams":[{{"codec_type":"video","codec_name":"h264","width":1920,"height":1080,
+                "avg_frame_rate":"30/1"{extra}}}],"format":{{"duration":"1.0"}}}}"#
+        )
+    }
+
+    #[test]
+    fn rotation_of_90_swaps_dimensions() {
+        let json = video_sample(
+            r#","side_data_list":[{"side_data_type":"Display Matrix","rotation":-90}]"#,
+        );
+        let v = parse_probe(&json).unwrap().video.unwrap();
+        assert_eq!((v.width, v.height), (1080, 1920));
+    }
+
+    #[test]
+    fn rotation_of_180_keeps_dimensions() {
+        let json = video_sample(
+            r#","side_data_list":[{"side_data_type":"Display Matrix","rotation":180}]"#,
+        );
+        let v = parse_probe(&json).unwrap().video.unwrap();
+        assert_eq!((v.width, v.height), (1920, 1080));
+    }
+
+    #[test]
+    fn no_side_data_keeps_dimensions() {
+        let v = parse_probe(&video_sample("")).unwrap().video.unwrap();
+        assert_eq!((v.width, v.height), (1920, 1080));
+    }
+
+    #[test]
+    fn cover_art_is_not_a_video_stream() {
+        let json = r#"{"streams":[
+            {"codec_type":"audio","codec_name":"mp3"},
+            {"codec_type":"video","codec_name":"mjpeg","width":500,"height":500,
+             "disposition":{"attached_pic":1}}
+        ],"format":{"duration":"3.0"}}"#;
         let info = parse_probe(json).unwrap();
         assert!(info.video.is_none());
         assert!(info.has_audio);
