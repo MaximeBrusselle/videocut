@@ -1,69 +1,103 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Videocut</title>
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
-  <body>
-    <main id="app">
-      <section class="row">
-        <button id="open-video">Open video…</button>
-        <span id="clip-info">Drop a video here or click Open</span>
-      </section>
+  <body class="text-base-content">
+    <main id="app" class="mx-auto flex max-w-[1100px] flex-col gap-4 p-5">
+      <header class="flex flex-wrap items-center gap-3">
+        <div class="brand">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.6 7.2a3 3 0 1 0-2.4 4.8L10 14l-2.8 2a3 3 0 1 0 1.4 2.3L12 16l7 5v-2L9.8 12.8 19 6V4zM6.5 9.8a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6zm0 8.9a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6z"/></svg>
+        </div>
+        <h1 class="text-lg font-semibold tracking-tight">Videocut</h1>
+        <span id="clip-info" class="pill ml-1">Drop a video here or click Open</span>
+        <button id="open-video" class="btn btn-primary btn-sm ml-auto">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg>
+          Open video
+        </button>
+      </header>
 
-      <section id="stage">
+      <section id="stage" class="card-surface">
         <video id="video" playsinline></video>
         <div id="crop" hidden></div>
-      </section>
-
-      <section class="transport-row">
-        <span id="time-readout">0:00.0</span>
-        <div class="transport">
-          <button id="btn-start" title="Jump to in point" aria-label="Jump to in point"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
-          <button id="btn-back" title="Previous frame (Left arrow; Shift = 1 second)" aria-label="Previous frame"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg></button>
-          <button id="play" class="play" title="Play / Pause (Space)" aria-label="Play or pause">
-            <svg id="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
-            <svg id="icon-pause" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
-          </button>
-          <button id="btn-forward" title="Next frame (Right arrow; Shift = 1 second)" aria-label="Next frame"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.6 16.6 10 18l6-6-6-6-1.4 1.4 4.6 4.6z"/></svg></button>
-          <button id="btn-end" title="Jump to out point" aria-label="Jump to out point"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg></button>
+        <div id="empty-state">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h11a2 2 0 0 1 2 2v2.6l4-2.4v9.6l-4-2.4V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></svg>
+          <strong>Drop a video here</strong>
+          <span>or use <em>Open video</em> to pick one</span>
         </div>
-        <label class="crop-toggle"><input id="crop-enabled" type="checkbox" checked /> Crop to 9:16</label>
       </section>
 
-      <section>
+      <section class="card-surface flex flex-col gap-4 p-4">
+        <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+          <span id="time-readout" class="time-readout justify-self-start">0:00.0</span>
+          <div class="transport flex items-center gap-2">
+            <button id="btn-start" class="btn btn-circle btn-ghost" title="Jump to in point" aria-label="Jump to in point"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
+            <button id="btn-back" class="btn btn-circle btn-ghost" title="Previous frame (Left arrow; Shift = 1 second)" aria-label="Previous frame"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg></button>
+            <button id="play" class="btn btn-circle btn-primary btn-lg" title="Play / Pause (Space)" aria-label="Play or pause">
+              <svg id="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+              <svg id="icon-pause" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+            </button>
+            <button id="btn-forward" class="btn btn-circle btn-ghost" title="Next frame (Right arrow; Shift = 1 second)" aria-label="Next frame"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.6 16.6 10 18l6-6-6-6-1.4 1.4 4.6 4.6z"/></svg></button>
+            <button id="btn-end" class="btn btn-circle btn-ghost" title="Jump to out point" aria-label="Jump to out point"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg></button>
+          </div>
+          <label class="toggle-label justify-self-end"><input id="crop-enabled" class="toggle toggle-primary toggle-sm" type="checkbox" checked /> Crop to 9:16</label>
+        </div>
+
         <div id="track">
           <div id="range"></div>
           <div id="handle-in" class="handle"></div>
           <div id="handle-out" class="handle"></div>
           <div id="playhead"></div>
         </div>
-        <div class="row">
-          <button id="set-in">Set in (I)</button>
-          <span id="in-readout">0:00.00</span>
-          <button id="set-out">Set out (O)</button>
-          <span id="out-readout">0:00.00</span>
-          <span id="len-readout"></span>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="set-in" class="btn btn-sm btn-soft">Set in <kbd class="kbd kbd-xs">I</kbd></button>
+          <span id="in-readout" class="chip">0:00.00</span>
+          <span class="chip-sep" aria-hidden="true">→</span>
+          <button id="set-out" class="btn btn-sm btn-soft">Set out <kbd class="kbd kbd-xs">O</kbd></button>
+          <span id="out-readout" class="chip">0:00.00</span>
+          <span id="len-readout" class="pill ml-auto"></span>
         </div>
       </section>
 
-      <section class="row">
-        <button id="open-song">Choose song… (optional)</button>
-        <span id="song-name">No song — the clip keeps its own audio</span>
-        <button id="clear-song" hidden>Remove song</button>
-        <label>Start at <input id="song-start" value="0:00" size="6" /></label>
-        <label><input id="preview-song" type="checkbox" /> Preview with song</label>
-      </section>
-      <p id="song-warning" class="warning" hidden></p>
+      <div class="grid gap-4 md:grid-cols-2">
+        <section class="card-surface flex flex-col gap-3 p-4">
+          <h2 class="section-title">Soundtrack</h2>
+          <div class="flex flex-wrap items-center gap-2">
+            <button id="open-song" class="btn btn-sm btn-soft">
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.6A4 4 0 1 0 14 17V7h4V3z"/></svg>
+              Choose song
+            </button>
+            <button id="clear-song" class="btn btn-sm btn-ghost" hidden>Remove</button>
+          </div>
+          <span id="song-name" class="muted truncate">No song — the clip keeps its own audio</span>
+          <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <label class="flex items-center gap-2 text-sm">Start at <input id="song-start" class="input input-sm w-20 text-center font-mono" type="text" value="0:00" size="6" /></label>
+            <label class="toggle-label text-sm"><input id="preview-song" class="toggle toggle-primary toggle-sm" type="checkbox" /> Preview with song</label>
+          </div>
+          <p id="song-warning" class="alert alert-warning alert-soft py-2 text-sm" role="alert" hidden></p>
+        </section>
 
-      <section class="row">
-        <button id="export" class="primary">Export…</button>
-        <button id="cancel" hidden>Cancel</button>
-        <progress id="progress" max="100" value="0" hidden></progress>
-      </section>
-      <p id="status"></p>
+        <section class="card-surface flex flex-col gap-3 p-4">
+          <h2 class="section-title">Export</h2>
+          <label class="flex flex-col gap-1.5 text-sm">
+            <span class="muted">Quality</span>
+            <select id="preset" class="select select-sm w-full"></select>
+          </label>
+          <div class="mt-auto flex flex-wrap items-center gap-3">
+            <button id="export" class="btn btn-primary">
+              <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11.2l3.6-3.6L17 12l-5 5-5-5 1.4-1.4 3.6 3.6V3zM5 19h14v2H5z"/></svg>
+              Export
+            </button>
+            <button id="cancel" class="btn btn-soft" hidden>Cancel</button>
+            <progress id="progress" class="progress progress-primary min-w-32 flex-1" max="100" value="0" hidden></progress>
+          </div>
+          <p id="status" class="m-0 min-h-[1.4em] whitespace-pre-wrap text-sm text-base-content/60"></p>
+        </section>
+      </div>
     </main>
     <audio id="audio"></audio>
     <script type="module" src="/src/main.ts"></script>

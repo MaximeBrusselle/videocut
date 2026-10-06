@@ -1,3 +1,4 @@
+import { DEFAULT_PRESET, type PresetId } from './presets';
 import { createStore } from './store';
 import type { VideoInfo } from './types';
 
@@ -14,6 +15,7 @@ export interface AppState {
   /** Crop window x in source pixels. */
   cropX: number;
   cropEnabled: boolean;
+  preset: PresetId;
   playhead: number;
   busy: boolean;
 }
@@ -30,6 +32,7 @@ export const store = createStore<AppState>({
   songStart: 0,
   cropX: 0,
   cropEnabled: true,
+  preset: DEFAULT_PRESET,
   playhead: 0,
   busy: false,
 });

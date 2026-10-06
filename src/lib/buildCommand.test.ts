@@ -29,6 +29,7 @@ const base: ExportRequest = {
   songStart: 2,
   cropX: 100,
   cropEnabled: true,
+  preset: 'quality',
   clipAudioCodec: 'aac',
 };
 
@@ -55,6 +56,34 @@ describe('buildExportArgs', () => {
       '-t', '3.000', '-movflags', '+faststart',
       'C:\\out\\a_tiktok.mp4',
     ]);
+  });
+
+  it('scales to 720x1280 with a lower audio bitrate for the Discord preset', () => {
+    const args = buildExportArgs({ ...base, preset: 'discord' });
+    expect(args).toContain('crop=606:ih:100:0,scale=720:1280:flags=lanczos,setsar=1');
+    expect(args.slice(args.indexOf('-c:v'), args.indexOf('-c:v') + 4)).toEqual(['-c:v', 'libx264', '-crf', '27']);
+    expect(args[args.indexOf('-b:a') + 1]).toBe('96k');
+  });
+
+  it('encodes H.265 with the hvc1 tag for the smallest preset', () => {
+    const args = buildExportArgs({ ...base, preset: 'small' });
+    expect(args[args.indexOf('-c:v') + 1]).toBe('libx265');
+    expect(args[args.indexOf('-tag:v') + 1]).toBe('hvc1');
+  });
+
+  it('downscales an uncropped landscape clip to 720p, keeping the aspect ratio', () => {
+    const args = buildExportArgs({ ...base, preset: 'discord', cropEnabled: false });
+    expect(args).toContain('scale=1280:720:flags=lanczos,setsar=1');
+  });
+
+  it('does not upscale an uncropped clip that is already small', () => {
+    const small = { ...base, preset: 'discord' as const, cropEnabled: false, video: { ...video, width: 640, height: 360 } };
+    expect(buildExportArgs(small)).toContain('scale=trunc(iw/2)*2:trunc(ih/2)*2');
+  });
+
+  it('re-encodes AAC clip audio for the Discord preset instead of copying it', () => {
+    const args = buildExportArgs({ ...base, songPath: null, preset: 'discord' });
+    expect(args).not.toContain('copy');
   });
 
   it('caps the duration when the song is too short', () => {

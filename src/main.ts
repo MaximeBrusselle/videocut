@@ -11,6 +11,7 @@ import { cancelExport, exportVideo, onProgress, probeMedia } from './lib/backend
 import { $ } from './lib/dom';
 import { centeredCropX } from './lib/geometry';
 import { defaultOutputPath, fileName } from './lib/paths';
+import { isPresetId, PRESETS } from './lib/presets';
 import { store, type AppState } from './lib/state';
 import { formatMmSs, parseMmSs } from './lib/time';
 import { CropOverlay } from './ui/cropOverlay';
@@ -74,6 +75,7 @@ function render(s: AppState): void {
   previewSongInput.disabled = !s.songPath;
 
   $<HTMLButtonElement>('export').disabled = !s.clipPath || s.busy;
+  $<HTMLSelectElement>('preset').disabled = s.busy;
   $('cancel').hidden = !s.busy;
   progressEl.hidden = !s.busy;
 }
@@ -186,6 +188,7 @@ async function runExport(): Promise<void> {
     songStart: s.songStart,
     cropX: s.cropX,
     cropEnabled: s.cropEnabled,
+    preset: s.preset,
     clipAudioCodec: s.clipAudioCodec,
   };
   const errors = validateRequest(request);
@@ -219,6 +222,15 @@ crop.onChange = (cropX) => store.set({ cropX });
 $<HTMLInputElement>('crop-enabled').addEventListener('change', (event) =>
   store.set({ cropEnabled: (event.target as HTMLInputElement).checked }),
 );
+
+const presetSelect = $<HTMLSelectElement>('preset');
+for (const [id, { label }] of Object.entries(PRESETS)) {
+  presetSelect.add(new Option(label, id));
+}
+presetSelect.value = store.get().preset;
+presetSelect.addEventListener('change', () => {
+  if (isPresetId(presetSelect.value)) store.set({ preset: presetSelect.value });
+});
 
 timeline.onSeek = (time) => {
   store.set({ playhead: time }); // move the playhead right away; the video catches up

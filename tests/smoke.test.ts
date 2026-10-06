@@ -69,6 +69,7 @@ describe.skipIf(!toolsAvailable)('export smoke test', () => {
       songStart: 2,
       cropX: 100,
       cropEnabled: true,
+      preset: 'quality',
       clipAudioCodec: null,
       ...overrides,
     };
@@ -118,6 +119,25 @@ describe.skipIf(!toolsAvailable)('export smoke test', () => {
     const video = probe(output).streams.find((s) => s.codec_type === 'video');
     expect(video?.width).toBe(1920);
     expect(video?.height).toBe(1080);
+  });
+
+  it('produces a 720x1280 H.264 file for the Discord preset', () => {
+    const output = join(dir, 'discord.mp4');
+    execFileSync('ffmpeg', buildExportArgs(request(output, { preset: 'discord' })));
+
+    const video = probe(output).streams.find((s) => s.codec_type === 'video');
+    expect(video?.width).toBe(720);
+    expect(video?.height).toBe(1280);
+    expect(video?.codec_name).toBe('h264');
+  });
+
+  it('produces an H.265 file for the smallest preset', () => {
+    const output = join(dir, 'small.mp4');
+    execFileSync('ffmpeg', buildExportArgs(request(output, { preset: 'small' })));
+
+    const video = probe(output).streams.find((s) => s.codec_type === 'video');
+    expect(video?.width).toBe(720);
+    expect(video?.codec_name).toBe('hevc');
   });
 
   it('caps the output to the remaining song length', () => {

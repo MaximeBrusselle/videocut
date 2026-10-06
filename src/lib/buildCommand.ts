@@ -1,5 +1,6 @@
 import { clampCropX, cropWidth } from './geometry';
 import { samePath } from './paths';
+import { PRESETS, type PresetId } from './presets';
 import { formatSeconds } from './time';
 import type { VideoInfo } from './types';
 
@@ -17,6 +18,8 @@ export interface ExportRequest {
   cropX: number;
   /** When false the original frame is kept: no crop and no 1080x1920 scale. */
   cropEnabled: boolean;
+  /** Codec, resolution and bitrate settings. */
+  preset: PresetId;
   /** Audio codec of the clip (from ffprobe), null when it has no audio. */
   clipAudioCodec: string | null;
 }
@@ -65,18 +68,30 @@ export function validateRequest(req: ExportRequest): string[] {
   return errors;
 }
 
-/** Crop to 9:16 and scale to 1080x1920, or only guard against odd sizes (H.264 needs even dimensions). */
+/** Crop to 9:16 and scale to the preset size, or only guard against odd sizes (H.264 needs even dimensions). */
 function videoFilter(req: ExportRequest): string {
-  if (!req.cropEnabled) return 'scale=trunc(iw/2)*2:trunc(ih/2)*2';
+  const { shortSide } = PRESETS[req.preset];
+  if (!req.cropEnabled) {
+    const { width, height } = req.video;
+    if (shortSide !== null && Math.min(width, height) > shortSide) {
+      const scale = shortSide / Math.min(width, height);
+      const w = Math.round((width * scale) / 2) * 2;
+      const h = Math.round((height * scale) / 2) * 2;
+      return `scale=${w}:${h}:flags=lanczos,setsar=1`;
+    }
+    return 'scale=trunc(iw/2)*2:trunc(ih/2)*2';
+  }
   const cw = cropWidth(req.video.height);
   const x = clampCropX(req.cropX, req.video.width, req.video.height);
-  return `crop=${cw}:ih:${x}:0,scale=1080:1920:flags=lanczos,setsar=1`;
+  const w = shortSide ?? 1080;
+  return `crop=${cw}:ih:${x}:0,scale=${w}:${(w * 16) / 9}:flags=lanczos,setsar=1`;
 }
 
 /** Full ffmpeg argument list (without the `ffmpeg` executable itself). */
 export function buildExportArgs(req: ExportRequest): string[] {
   const duration = exportDuration(req);
   const song = req.songPath;
+  const preset = PRESETS[req.preset];
 
   const args = [
     '-y', '-hide_banner', '-loglevel', 'error', '-progress', 'pipe:1', '-nostats',
@@ -85,7 +100,7 @@ export function buildExportArgs(req: ExportRequest): string[] {
     '-map', '0:v:0',
     '-map', song === null ? '0:a:0?' : '1:a:0',
     '-vf', videoFilter(req),
-    '-c:v', 'libx264', '-crf', '15', '-preset', 'slow', '-pix_fmt', 'yuv420p',
+    ...preset.videoArgs,
   ];
 
   const colourFlags: Array<[string, string | null]> = [
@@ -97,10 +112,10 @@ export function buildExportArgs(req: ExportRequest): string[] {
     if (value) args.push(flag, value);
   }
 
-  if (song === null && req.clipAudioCodec === 'aac') {
+  if (song === null && preset.copyClipAudio && req.clipAudioCodec === 'aac') {
     args.push('-c:a', 'copy');
   } else {
-    args.push('-c:a', 'aac', '-b:a', '256k');
+    args.push('-c:a', 'aac', '-b:a', preset.audioBitrate);
   }
   if (song !== null && duration >= 1) {
     args.push('-af', `afade=t=out:st=${formatSeconds(duration - 1)}:d=1`);
