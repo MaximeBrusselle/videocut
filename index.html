@@ -84,9 +84,28 @@
         <section class="card-surface flex flex-col gap-3 p-4">
           <h2 class="section-title">Export</h2>
           <label class="flex flex-col gap-1.5 text-sm">
-            <span class="muted">Quality</span>
+            <span class="muted">Preset</span>
             <select id="preset" class="select select-sm w-full"></select>
           </label>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="flex flex-col gap-1.5 text-sm">
+              <span class="muted">Codec</span>
+              <select id="codec" class="select select-sm w-full"></select>
+            </label>
+            <label class="flex flex-col gap-1.5 text-sm">
+              <span class="muted">Resolution</span>
+              <select id="resolution" class="select select-sm w-full"></select>
+            </label>
+            <label class="flex flex-col gap-1.5 text-sm">
+              <span class="muted">Quality</span>
+              <select id="quality" class="select select-sm w-full"></select>
+            </label>
+            <label class="flex flex-col gap-1.5 text-sm">
+              <span class="muted">Audio</span>
+              <select id="audio" class="select select-sm w-full"></select>
+            </label>
+          </div>
+          <p id="codec-note" class="muted m-0 text-xs"></p>
           <div class="mt-auto flex flex-wrap items-center gap-3">
             <button id="export" class="btn btn-primary">
               <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11.2l3.6-3.6L17 12l-5 5-5-5 1.4-1.4 3.6 3.6V3zM5 19h14v2H5z"/></svg>

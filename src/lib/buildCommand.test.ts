@@ -6,6 +6,7 @@ import {
   validateRequest,
   type ExportRequest,
 } from './buildCommand';
+import { PRESETS, matchPreset, type ExportSettings } from './presets';
 import type { VideoInfo } from './types';
 
 const video: VideoInfo = {
@@ -29,9 +30,15 @@ const base: ExportRequest = {
   songStart: 2,
   cropX: 100,
   cropEnabled: true,
-  preset: 'quality',
+  settings: PRESETS.quality.settings,
   clipAudioCodec: 'aac',
 };
+
+const withSettings = (change: Partial<ExportSettings>, extra: Partial<ExportRequest> = {}): ExportRequest => ({
+  ...base,
+  ...extra,
+  settings: { ...base.settings, ...change },
+});
 
 describe('planDuration', () => {
   it('uses the clip length when the song is long enough', () => {
@@ -59,31 +66,112 @@ describe('buildExportArgs', () => {
   });
 
   it('scales to 720x1280 with a lower audio bitrate for the Discord preset', () => {
-    const args = buildExportArgs({ ...base, preset: 'discord' });
+    const args = buildExportArgs({ ...base, settings: PRESETS.discord.settings });
     expect(args).toContain('crop=606:ih:100:0,scale=720:1280:flags=lanczos,setsar=1');
     expect(args.slice(args.indexOf('-c:v'), args.indexOf('-c:v') + 4)).toEqual(['-c:v', 'libx264', '-crf', '27']);
     expect(args[args.indexOf('-b:a') + 1]).toBe('96k');
   });
 
   it('encodes H.265 with the hvc1 tag for the smallest preset', () => {
-    const args = buildExportArgs({ ...base, preset: 'small' });
+    const args = buildExportArgs({ ...base, settings: PRESETS.small.settings });
     expect(args[args.indexOf('-c:v') + 1]).toBe('libx265');
     expect(args[args.indexOf('-tag:v') + 1]).toBe('hvc1');
   });
 
   it('downscales an uncropped landscape clip to 720p, keeping the aspect ratio', () => {
-    const args = buildExportArgs({ ...base, preset: 'discord', cropEnabled: false });
+    const args = buildExportArgs({ ...base, settings: PRESETS.discord.settings, cropEnabled: false });
     expect(args).toContain('scale=1280:720:flags=lanczos,setsar=1');
   });
 
   it('does not upscale an uncropped clip that is already small', () => {
-    const small = { ...base, preset: 'discord' as const, cropEnabled: false, video: { ...video, width: 640, height: 360 } };
+    const small = {
+      ...base,
+      settings: PRESETS.discord.settings,
+      cropEnabled: false,
+      video: { ...video, width: 640, height: 360 },
+    };
     expect(buildExportArgs(small)).toContain('scale=trunc(iw/2)*2:trunc(ih/2)*2');
   });
 
   it('re-encodes AAC clip audio for the Discord preset instead of copying it', () => {
-    const args = buildExportArgs({ ...base, songPath: null, preset: 'discord' });
+    const args = buildExportArgs({ ...base, songPath: null, settings: PRESETS.discord.settings });
     expect(args).not.toContain('copy');
+  });
+
+  it('uses the codec menu: AV1 and H.265 stay MP4, VP9 switches to WebM with Opus', () => {
+    const av1 = buildExportArgs(withSettings({ codec: 'av1' }));
+    expect(av1.slice(av1.indexOf('-c:v'), av1.indexOf('-c:v') + 4)).toEqual(['-c:v', 'libsvtav1', '-crf', '24']);
+    expect(av1).toContain('+faststart');
+
+    const vp9 = buildExportArgs(withSettings({ codec: 'vp9' }, { outputPath: 'C:\\out\\a.webm' }));
+    expect(vp9.slice(vp9.indexOf('-c:v'), vp9.indexOf('-c:v') + 6)).toEqual([
+      '-c:v', 'libvpx-vp9', '-crf', '20', '-b:v', '0',
+    ]);
+    expect(vp9.slice(vp9.indexOf('-c:a'), vp9.indexOf('-c:a') + 4)).toEqual(['-c:a', 'libopus', '-b:a', '160k']);
+    expect(vp9).not.toContain('+faststart');
+  });
+
+  it('maps each quality tier to a codec-specific CRF', () => {
+    const crf = (settings: Partial<ExportSettings>) => {
+      const args = buildExportArgs(withSettings(settings));
+      return args[args.indexOf('-crf') + 1];
+    };
+    expect(crf({ quality: 'high' })).toBe('20');
+    expect(crf({ quality: 'small' })).toBe('27');
+    expect(crf({ codec: 'h265', quality: 'balanced' })).toBe('25');
+  });
+
+  it('sizes the crop for every resolution with even dimensions', () => {
+    const filter = (resolution: ExportSettings['resolution']) => {
+      const args = buildExportArgs(withSettings({ resolution }));
+      return args[args.indexOf('-vf') + 1];
+    };
+    expect(filter('p1080')).toBe('crop=606:ih:100:0,scale=1080:1920:flags=lanczos,setsar=1');
+    expect(filter('p480')).toBe('crop=606:ih:100:0,scale=480:854:flags=lanczos,setsar=1');
+  });
+
+  it('removes audio with -an and no audio map', () => {
+    const args = buildExportArgs(withSettings({ audio: 'none' }, { songPath: null }));
+    expect(args).toContain('-an');
+    expect(args.filter((a) => a === '-map')).toHaveLength(1);
+    expect(args).not.toContain('-c:a');
+  });
+
+  it('uses the chosen audio bitrate', () => {
+    const args = buildExportArgs(withSettings({ audio: '128k' }));
+    expect(args.slice(args.indexOf('-c:a'), args.indexOf('-c:a') + 4)).toEqual(['-c:a', 'aac', '-b:a', '128k']);
+  });
+
+  it('does not copy AAC audio into a WebM', () => {
+    const args = buildExportArgs(withSettings({ codec: 'vp9' }, { songPath: null }));
+    expect(args).not.toContain('copy');
+  });
+
+  describe('target size', () => {
+    const sized = (extra: Partial<ExportRequest> = {}) =>
+      withSettings({ quality: 'size10', audio: '96k' }, { inPoint: 0, outPoint: 20, songDuration: 100, songStart: 0, ...extra });
+
+    it('uses an average video bitrate that leaves room for the audio', () => {
+      const args = buildExportArgs(sized());
+      // 10 MB * 8000 * 0.92 / 20 s = 3680 kbps total, minus 96 kbps audio.
+      expect(args.slice(args.indexOf('-c:v'), args.indexOf('-c:v') + 4)).toEqual(['-c:v', 'libx264', '-b:v', '3584k']);
+      expect(args).not.toContain('-crf');
+    });
+
+    it('uses a plain bitrate for VP9', () => {
+      const args = buildExportArgs({ ...sized(), settings: { ...sized().settings, codec: 'vp9' } });
+      expect(args[args.indexOf('-b:v') + 1]).toBe('3584k');
+      expect(args).not.toContain('-crf');
+    });
+
+    it('is refused when the clip is too long for the size', () => {
+      const errors = validateRequest(sized({ outPoint: 3000, songDuration: 5000 }));
+      expect(errors.join(' ')).toMatch(/too small/);
+    });
+
+    it('is accepted for a normal clip', () => {
+      expect(validateRequest(sized())).toEqual([]);
+    });
   });
 
   it('caps the duration when the song is too short', () => {
@@ -120,6 +208,19 @@ describe('buildExportArgs', () => {
   it('clamps the crop position inside the frame', () => {
     const args = buildExportArgs({ ...base, cropX: 5000 });
     expect(args[args.indexOf('-vf') + 1]).toBe('crop=606:ih:1314:0,scale=1080:1920:flags=lanczos,setsar=1');
+  });
+});
+
+describe('presets', () => {
+  it('match their own settings and report Custom once a menu changes', () => {
+    for (const [id, preset] of Object.entries(PRESETS)) {
+      expect(matchPreset(preset.settings)).toBe(id);
+    }
+    expect(matchPreset({ ...PRESETS.quality.settings, codec: 'av1' })).toBe('custom');
+  });
+
+  it('refuses to remove the audio while a song is selected', () => {
+    expect(validateRequest(withSettings({ audio: 'none' })).join(' ')).toMatch(/Remove audio/);
   });
 });
 

@@ -8,6 +8,9 @@ describe('defaultOutputPath', () => {
   it('handles names without an extension', () => {
     expect(defaultOutputPath('C:\\clips\\holiday')).toBe('C:\\clips\\holiday_tiktok.mp4');
   });
+  it('uses the given extension', () => {
+    expect(defaultOutputPath('C:\\clips\\holiday.mov', 'webm')).toBe('C:\\clips\\holiday_tiktok.webm');
+  });
   it('does not strip dots from folder names', () => {
     expect(defaultOutputPath('C:\\my.clips\\holiday')).toBe('C:\\my.clips\\holiday_tiktok.mp4');
   });

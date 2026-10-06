@@ -1,9 +1,10 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildExportArgs, planDuration, type ExportRequest } from '../src/lib/buildCommand';
+import { PRESETS, type ExportSettings } from '../src/lib/presets';
 
 const toolsAvailable =
   spawnSync('ffmpeg', ['-version']).status === 0 && spawnSync('ffprobe', ['-version']).status === 0;
@@ -69,7 +70,7 @@ describe.skipIf(!toolsAvailable)('export smoke test', () => {
       songStart: 2,
       cropX: 100,
       cropEnabled: true,
-      preset: 'quality',
+      settings: PRESETS.quality.settings,
       clipAudioCodec: null,
       ...overrides,
     };
@@ -123,7 +124,7 @@ describe.skipIf(!toolsAvailable)('export smoke test', () => {
 
   it('produces a 720x1280 H.264 file for the Discord preset', () => {
     const output = join(dir, 'discord.mp4');
-    execFileSync('ffmpeg', buildExportArgs(request(output, { preset: 'discord' })));
+    execFileSync('ffmpeg', buildExportArgs(request(output, { settings: PRESETS.discord.settings })));
 
     const video = probe(output).streams.find((s) => s.codec_type === 'video');
     expect(video?.width).toBe(720);
@@ -133,11 +134,43 @@ describe.skipIf(!toolsAvailable)('export smoke test', () => {
 
   it('produces an H.265 file for the smallest preset', () => {
     const output = join(dir, 'small.mp4');
-    execFileSync('ffmpeg', buildExportArgs(request(output, { preset: 'small' })));
+    execFileSync('ffmpeg', buildExportArgs(request(output, { settings: PRESETS.small.settings })));
 
     const video = probe(output).streams.find((s) => s.codec_type === 'video');
     expect(video?.width).toBe(720);
     expect(video?.codec_name).toBe('hevc');
+  });
+
+  const codecCases: Array<[string, ExportSettings['codec'], string, string, string]> = [
+    ['AV1 in MP4', 'av1', 'mp4', 'av1', 'aac'],
+    ['VP9 in WebM with Opus', 'vp9', 'webm', 'vp9', 'opus'],
+  ];
+  it.each(codecCases)('produces %s', (_name, codec, ext, videoCodec, audioCodec) => {
+    const output = join(dir, `codec-${codec}.${ext}`);
+    const settings: ExportSettings = { ...PRESETS.discord.settings, codec, resolution: 'p480' };
+    execFileSync('ffmpeg', buildExportArgs(request(output, { settings })));
+
+    const info = probe(output);
+    const video = info.streams.find((s) => s.codec_type === 'video');
+    expect(video?.codec_name).toBe(videoCodec);
+    expect(video?.width).toBe(480);
+    expect(video?.height).toBe(854);
+    expect(info.streams.find((s) => s.codec_type === 'audio')?.codec_name).toBe(audioCodec);
+  });
+
+  it('removes the audio when asked', () => {
+    const output = join(dir, 'no-audio.mp4');
+    const settings: ExportSettings = { ...PRESETS.quality.settings, audio: 'none' };
+    execFileSync('ffmpeg', buildExportArgs(request(output, { songPath: null, settings })));
+    expect(probe(output).streams.map((s) => s.codec_type)).toEqual(['video']);
+  });
+
+  it('stays under the target size', () => {
+    const output = join(dir, 'sized.mp4');
+    const settings: ExportSettings = { ...PRESETS.discord10.settings, resolution: 'p480' };
+    execFileSync('ffmpeg', buildExportArgs(request(output, { settings })));
+    const bytes = statSync(output).size;
+    expect(bytes).toBeLessThan(10_000_000);
   });
 
   it('caps the output to the remaining song length', () => {

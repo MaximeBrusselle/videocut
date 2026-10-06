@@ -1,6 +1,6 @@
-/** `<folder>\<name>.<ext>` -> `<folder>\<name>_tiktok.mp4`. */
-export function defaultOutputPath(clipPath: string): string {
-  return clipPath.replace(/\.[^.\\/]+$/, '') + '_tiktok.mp4';
+/** `<folder>\<name>.<ext>` -> `<folder>\<name>_tiktok.<extension>`. */
+export function defaultOutputPath(clipPath: string, extension = 'mp4'): string {
+  return clipPath.replace(/\.[^.\\/]+$/, '') + `_tiktok.${extension}`;
 }
 
 export function fileName(path: string): string {

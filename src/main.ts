@@ -11,7 +11,22 @@ import { cancelExport, exportVideo, onProgress, probeMedia } from './lib/backend
 import { $ } from './lib/dom';
 import { centeredCropX } from './lib/geometry';
 import { defaultOutputPath, fileName } from './lib/paths';
-import { isPresetId, PRESETS } from './lib/presets';
+import {
+  AUDIO_OPTIONS,
+  CODECS,
+  CRF_QUALITIES,
+  PRESETS,
+  RESOLUTIONS,
+  SIZE_QUALITIES,
+  containerOf,
+  isAudioId,
+  isCodecId,
+  isPresetId,
+  isQualityId,
+  isResolutionId,
+  matchPreset,
+  type ExportSettings,
+} from './lib/presets';
 import { store, type AppState } from './lib/state';
 import { formatMmSs, parseMmSs } from './lib/time';
 import { CropOverlay } from './ui/cropOverlay';
@@ -39,6 +54,66 @@ function errorText(error: unknown): string {
   if (error instanceof Error) return error.message;
   return String(error);
 }
+
+// ---- export menus ----------------------------------------------------------
+
+const presetSelect = $<HTMLSelectElement>('preset');
+const codecSelect = $<HTMLSelectElement>('codec');
+const resolutionSelect = $<HTMLSelectElement>('resolution');
+const qualitySelect = $<HTMLSelectElement>('quality');
+const audioSelect = $<HTMLSelectElement>('audio');
+const exportMenus = [presetSelect, codecSelect, resolutionSelect, qualitySelect, audioSelect];
+
+function addOptions(select: HTMLSelectElement | HTMLOptGroupElement, items: Array<[string, string]>): void {
+  for (const [value, label] of items) select.append(new Option(label, value));
+}
+
+function labelled(record: Record<string, { label: string }>): Array<[string, string]> {
+  return Object.entries(record).map<[string, string]>(([id, { label }]) => [id, label]);
+}
+
+addOptions(presetSelect, labelled(PRESETS));
+presetSelect.append(new Option('Custom', 'custom'));
+addOptions(codecSelect, labelled(CODECS));
+addOptions(resolutionSelect, labelled(RESOLUTIONS));
+addOptions(audioSelect, labelled(AUDIO_OPTIONS));
+
+const constantQuality = document.createElement('optgroup');
+constantQuality.label = 'Constant quality';
+addOptions(constantQuality, Object.entries(CRF_QUALITIES));
+const targetSize = document.createElement('optgroup');
+targetSize.label = 'Target file size';
+addOptions(targetSize, labelled(SIZE_QUALITIES));
+qualitySelect.append(constantQuality, targetSize);
+
+function renderExportMenus(settings: ExportSettings): void {
+  presetSelect.value = matchPreset(settings);
+  codecSelect.value = settings.codec;
+  resolutionSelect.value = settings.resolution;
+  qualitySelect.value = settings.quality;
+  audioSelect.value = settings.audio;
+  $('codec-note').textContent = CODECS[settings.codec].note;
+}
+
+function updateSettings(change: Partial<ExportSettings>): void {
+  store.set({ settings: { ...store.get().settings, ...change } });
+}
+
+presetSelect.addEventListener('change', () => {
+  if (isPresetId(presetSelect.value)) store.set({ settings: { ...PRESETS[presetSelect.value].settings } });
+});
+codecSelect.addEventListener('change', () => {
+  if (isCodecId(codecSelect.value)) updateSettings({ codec: codecSelect.value });
+});
+resolutionSelect.addEventListener('change', () => {
+  if (isResolutionId(resolutionSelect.value)) updateSettings({ resolution: resolutionSelect.value });
+});
+qualitySelect.addEventListener('change', () => {
+  if (isQualityId(qualitySelect.value)) updateSettings({ quality: qualitySelect.value });
+});
+audioSelect.addEventListener('change', () => {
+  if (isAudioId(audioSelect.value)) updateSettings({ audio: audioSelect.value });
+});
 
 // ---- rendering -------------------------------------------------------------
 
@@ -75,7 +150,8 @@ function render(s: AppState): void {
   previewSongInput.disabled = !s.songPath;
 
   $<HTMLButtonElement>('export').disabled = !s.clipPath || s.busy;
-  $<HTMLSelectElement>('preset').disabled = s.busy;
+  renderExportMenus(s.settings);
+  for (const menu of exportMenus) menu.disabled = s.busy;
   $('cancel').hidden = !s.busy;
   progressEl.hidden = !s.busy;
 }
@@ -170,12 +246,13 @@ async function runExport(): Promise<void> {
   const s = store.get();
   if (!s.clipPath || !s.video) return;
 
+  const container = containerOf(s.settings);
   const picked = await save({
-    defaultPath: defaultOutputPath(s.clipPath),
-    filters: [{ name: 'MP4 video', extensions: ['mp4'] }],
+    defaultPath: defaultOutputPath(s.clipPath, container),
+    filters: [{ name: container === 'mp4' ? 'MP4 video' : 'WebM video', extensions: [container] }],
   });
   if (!picked) return;
-  const outputPath = /\.mp4$/i.test(picked) ? picked : `${picked}.mp4`;
+  const outputPath = new RegExp(`\\.${container}$`, 'i').test(picked) ? picked : `${picked}.${container}`;
 
   const request: ExportRequest = {
     clipPath: s.clipPath,
@@ -188,7 +265,7 @@ async function runExport(): Promise<void> {
     songStart: s.songStart,
     cropX: s.cropX,
     cropEnabled: s.cropEnabled,
-    preset: s.preset,
+    settings: s.settings,
     clipAudioCodec: s.clipAudioCodec,
   };
   const errors = validateRequest(request);
@@ -222,15 +299,6 @@ crop.onChange = (cropX) => store.set({ cropX });
 $<HTMLInputElement>('crop-enabled').addEventListener('change', (event) =>
   store.set({ cropEnabled: (event.target as HTMLInputElement).checked }),
 );
-
-const presetSelect = $<HTMLSelectElement>('preset');
-for (const [id, { label }] of Object.entries(PRESETS)) {
-  presetSelect.add(new Option(label, id));
-}
-presetSelect.value = store.get().preset;
-presetSelect.addEventListener('change', () => {
-  if (isPresetId(presetSelect.value)) store.set({ preset: presetSelect.value });
-});
 
 timeline.onSeek = (time) => {
   store.set({ playhead: time }); // move the playhead right away; the video catches up
