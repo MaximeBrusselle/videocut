@@ -68,6 +68,9 @@ describe.skipIf(!toolsAvailable)('export smoke test', () => {
       inPoint: 1,
       outPoint: 4,
       songStart: 2,
+      songVolume: 1,
+      songFadeIn: 0,
+      songFadeOut: 1,
       cropX: 100,
       cropEnabled: true,
       settings: PRESETS.quality.settings,
@@ -89,6 +92,18 @@ describe.skipIf(!toolsAvailable)('export smoke test', () => {
     expect(video?.pix_fmt).toBe('yuv420p');
     expect(audio?.codec_name).toBe('aac');
     expect(info.streams).toHaveLength(2);
+    expect(Math.abs(Number(info.format.duration) - 3)).toBeLessThan(0.1);
+  });
+
+  it('accepts the boosted volume, limiter and both fades', () => {
+    const output = join(dir, 'mixed.mp4');
+    execFileSync(
+      'ffmpeg',
+      buildExportArgs(request(output, { songVolume: 1.8, songFadeIn: 0.5, songFadeOut: 1.5 })),
+    );
+
+    const info = probe(output);
+    expect(info.streams.find((s) => s.codec_type === 'audio')?.codec_name).toBe('aac');
     expect(Math.abs(Number(info.format.duration) - 3)).toBeLessThan(0.1);
   });
 

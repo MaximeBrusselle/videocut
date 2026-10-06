@@ -1,4 +1,5 @@
 import { DEFAULT_PRESET, PRESETS, type ExportSettings } from './presets';
+import { DEFAULT_SONG_FADE_IN, DEFAULT_SONG_FADE_OUT, DEFAULT_SONG_VOLUME } from './songMix';
 import { createStore } from './store';
 import type { VideoInfo } from './types';
 
@@ -12,6 +13,9 @@ export interface AppState {
   inPoint: number;
   outPoint: number;
   songStart: number;
+  songVolume: number;
+  songFadeIn: number;
+  songFadeOut: number;
   /** Crop window x in source pixels. */
   cropX: number;
   cropEnabled: boolean;
@@ -30,6 +34,9 @@ export const store = createStore<AppState>({
   inPoint: 0,
   outPoint: 0,
   songStart: 0,
+  songVolume: DEFAULT_SONG_VOLUME,
+  songFadeIn: DEFAULT_SONG_FADE_IN,
+  songFadeOut: DEFAULT_SONG_FADE_OUT,
   cropX: 0,
   cropEnabled: true,
   settings: { ...PRESETS[DEFAULT_PRESET].settings },

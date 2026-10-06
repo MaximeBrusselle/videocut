@@ -1,5 +1,6 @@
 import { clearProxy, fileUrl, makeProxy } from '../lib/backend';
 import { $ } from '../lib/dom';
+import { fadeGain } from '../lib/songMix';
 
 /** Controls the preview <video> and the optional song <audio>. */
 export class Player {
@@ -10,6 +11,10 @@ export class Player {
   private inPoint = 0;
   private outPoint = 0;
   private songStart = 0;
+  private songVolume = 1;
+  private songFadeIn = 0;
+  private songFadeOut = 0;
+  private songLength = 0;
   private previewSong = false;
   private songUsable = false;
   private listeners: Array<(time: number) => void> = [];
@@ -59,6 +64,7 @@ export class Player {
   private loop = (): void => {
     this.emit();
     if (this.video.paused) return;
+    this.applyGain();
     if (this.video.currentTime < this.inPoint - 0.05) {
       this.seek(this.inPoint);
     } else if (this.outPoint > 0 && this.video.currentTime >= this.outPoint) {
@@ -178,6 +184,20 @@ export class Player {
     if (!this.video.paused) this.syncAudio();
   }
 
+  setSongMix(volume: number, fadeIn: number, fadeOut: number, length: number): void {
+    this.songVolume = volume;
+    this.songFadeIn = fadeIn;
+    this.songFadeOut = fadeOut;
+    this.songLength = length;
+    this.applyGain();
+  }
+
+  /** Preview gain: volume (capped at 100%, <audio> cannot boost) times the fade at the current position. */
+  private applyGain(): void {
+    const fade = fadeGain(this.video.currentTime - this.inPoint, this.songLength, this.songFadeIn, this.songFadeOut);
+    this.audio.volume = Math.min(this.songVolume, 1) * fade;
+  }
+
   setPreviewSong(on: boolean): void {
     this.previewSong = on;
     if (!this.video.paused) this.syncAudio();
@@ -190,6 +210,7 @@ export class Player {
       return;
     }
     this.audio.currentTime = this.songStart + Math.max(0, this.video.currentTime - this.inPoint);
+    this.applyGain();
     void this.audio.play().catch(() => {});
   }
 }

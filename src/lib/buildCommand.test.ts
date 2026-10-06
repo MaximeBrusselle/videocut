@@ -28,6 +28,9 @@ const base: ExportRequest = {
   inPoint: 1,
   outPoint: 4,
   songStart: 2,
+  songVolume: 1,
+  songFadeIn: 0,
+  songFadeOut: 1,
   cropX: 100,
   cropEnabled: true,
   settings: PRESETS.quality.settings,
@@ -59,7 +62,7 @@ describe('buildExportArgs', () => {
       '-vf', 'crop=606:ih:100:0,scale=1080:1920:flags=lanczos,setsar=1',
       '-c:v', 'libx264', '-crf', '15', '-preset', 'slow', '-pix_fmt', 'yuv420p',
       '-c:a', 'aac', '-b:a', '256k',
-      '-af', 'afade=t=out:st=2.000:d=1',
+      '-af', 'afade=t=out:st=2.000:d=1.000',
       '-t', '3.000', '-movflags', '+faststart',
       'C:\\out\\a_tiktok.mp4',
     ]);
@@ -178,12 +181,12 @@ describe('buildExportArgs', () => {
     const args = buildExportArgs({ ...base, inPoint: 0, outPoint: 10, songStart: 4, songDuration: 9 });
     expect(args).toContain('5.000');
     expect(args[args.indexOf('-t') + 1]).toBe('5.000');
-    expect(args).toContain('afade=t=out:st=4.000:d=1');
+    expect(args).toContain('afade=t=out:st=4.000:d=1.000');
   });
 
-  it('skips the fade for clips shorter than 1 second', () => {
+  it('shortens the fade-out to the clip length for clips under the fade length', () => {
     const args = buildExportArgs({ ...base, inPoint: 1, outPoint: 1.5 });
-    expect(args).not.toContain('-af');
+    expect(args[args.indexOf('-af') + 1]).toBe('afade=t=out:st=0.000:d=0.500');
     expect(args[args.indexOf('-t') + 1]).toBe('0.500');
   });
 
@@ -208,6 +211,26 @@ describe('buildExportArgs', () => {
   it('clamps the crop position inside the frame', () => {
     const args = buildExportArgs({ ...base, cropX: 5000 });
     expect(args[args.indexOf('-vf') + 1]).toBe('crop=606:ih:1314:0,scale=1080:1920:flags=lanczos,setsar=1');
+  });
+});
+
+describe('song mix', () => {
+  it('applies volume, limiter and both fades', () => {
+    const args = buildExportArgs({ ...base, songVolume: 1.5, songFadeIn: 0.5, songFadeOut: 2 });
+    expect(args[args.indexOf('-af') + 1]).toBe(
+      'volume=1.5,alimiter=limit=0.97,afade=t=in:st=0:d=0.500,afade=t=out:st=1.000:d=2.000',
+    );
+  });
+
+  it('omits -af when nothing is set', () => {
+    expect(buildExportArgs({ ...base, songFadeOut: 0 })).not.toContain('-af');
+  });
+
+  it('ignores the mix without a song', () => {
+    const args = buildExportArgs(
+      withSettings({ audio: 'keep' }, { songPath: null, songDuration: 0, songStart: 0, songVolume: 0.5 }),
+    );
+    expect(args).not.toContain('-af');
   });
 });
 

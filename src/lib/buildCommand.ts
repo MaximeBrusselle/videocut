@@ -11,6 +11,7 @@ import {
   type ExportSettings,
   type RateControl,
 } from './presets';
+import { songFilters } from './songMix';
 import { formatSeconds } from './time';
 import type { VideoInfo } from './types';
 
@@ -24,6 +25,11 @@ export interface ExportRequest {
   inPoint: number;
   outPoint: number;
   songStart: number;
+  /** Song gain (1 = unchanged, up to 2). */
+  songVolume: number;
+  /** Song fade lengths in seconds. */
+  songFadeIn: number;
+  songFadeOut: number;
   /** Crop window x in source pixels. */
   cropX: number;
   /** When false the original frame is kept: no crop and no 1080x1920 scale. */
@@ -183,8 +189,9 @@ export function buildExportArgs(req: ExportRequest): string[] {
   } else {
     args.push('-c:a', audio.codec, '-b:a', `${audio.kbps}k`);
   }
-  if (song !== null && audio.mode !== 'none' && duration >= 1) {
-    args.push('-af', `afade=t=out:st=${formatSeconds(duration - 1)}:d=1`);
+  if (song !== null && audio.mode !== 'none') {
+    const filters = songFilters(req.songVolume, req.songFadeIn, req.songFadeOut, duration);
+    if (filters.length > 0) args.push('-af', filters.join(','));
   }
   args.push('-t', formatSeconds(duration));
   if (containerOf(req.settings) === 'mp4') args.push('-movflags', '+faststart');

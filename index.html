@@ -74,10 +74,26 @@
             <button id="clear-song" class="btn btn-sm btn-ghost" hidden>Remove</button>
           </div>
           <span id="song-name" class="muted truncate">No song — the clip keeps its own audio</span>
+          <div id="wave" class="wave" hidden>
+            <canvas id="wave-canvas"></canvas>
+            <div id="wave-window"></div>
+          </div>
           <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
             <label class="flex items-center gap-2 text-sm">Start at <input id="song-start" class="input input-sm w-20 text-center font-mono" type="text" value="0:00" size="6" /></label>
             <label class="toggle-label text-sm"><input id="preview-song" class="toggle toggle-primary toggle-sm" type="checkbox" /> Preview with song</label>
           </div>
+          <div class="grid grid-cols-[4.5rem_1fr_4rem] items-center gap-x-3 gap-y-2 text-sm">
+            <span>Volume</span>
+            <input id="song-volume" class="range range-primary range-xs" type="range" min="0" max="200" step="5" value="100" />
+            <span id="song-volume-readout" class="chip text-center">100%</span>
+            <span>Fade in</span>
+            <input id="song-fade-in" class="range range-primary range-xs" type="range" min="0" max="5" step="0.5" value="0" />
+            <span id="song-fade-in-readout" class="chip text-center">0.0 s</span>
+            <span>Fade out</span>
+            <input id="song-fade-out" class="range range-primary range-xs" type="range" min="0" max="5" step="0.5" value="1" />
+            <span id="song-fade-out-readout" class="chip text-center">1.0 s</span>
+          </div>
+          <p id="volume-hint" class="muted m-0 text-xs" hidden>Preview plays at most 100%; the export uses the full volume.</p>
           <p id="song-warning" class="alert alert-warning alert-soft py-2 text-sm" role="alert" hidden></p>
         </section>
 

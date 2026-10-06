@@ -86,3 +86,9 @@ input[type='text'] { user-select: text; -webkit-user-select: text; }
 .transport svg { width: 22px; height: 22px; fill: currentColor; }
 .transport .btn-primary { box-shadow: 0 8px 22px -6px var(--color-primary); }
 .transport .btn-primary:hover { box-shadow: 0 10px 28px -4px var(--color-primary); }
+
+/* Song waveform with a draggable clip-length window */
+.wave { position: relative; height: 64px; background: var(--color-base-100); border: 1px solid color-mix(in oklab, white 7%, transparent); border-radius: var(--radius-field); overflow: hidden; touch-action: none; cursor: ew-resize; }
+#wave-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#wave-window { position: absolute; top: 0; bottom: 0; background: color-mix(in oklab, var(--color-primary) 28%, transparent); border-left: 2px solid var(--color-primary); border-right: 2px solid var(--color-primary); pointer-events: none; }
+.wave, #wave-canvas { -webkit-user-drag: none; user-select: none; }

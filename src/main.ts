@@ -27,22 +27,33 @@ import {
   matchPreset,
   type ExportSettings,
 } from './lib/presets';
+import { DEFAULT_SONG_FADE_IN, DEFAULT_SONG_FADE_OUT, DEFAULT_SONG_VOLUME } from './lib/songMix';
 import { store, type AppState } from './lib/state';
 import { formatMmSs, parseMmSs } from './lib/time';
 import { CropOverlay } from './ui/cropOverlay';
 import { Player } from './ui/player';
 import { Timeline } from './ui/timeline';
+import { Waveform } from './ui/waveform';
 
 const MIN_CLIP_SECONDS = 0.1;
+const DEFAULT_MIX = {
+  songVolume: DEFAULT_SONG_VOLUME,
+  songFadeIn: DEFAULT_SONG_FADE_IN,
+  songFadeOut: DEFAULT_SONG_FADE_OUT,
+};
 
 const player = new Player();
 const crop = new CropOverlay();
 const timeline = new Timeline();
+const waveform = new Waveform();
 
 const statusEl = $('status');
 const progressEl = $<HTMLProgressElement>('progress');
 const songStartInput = $<HTMLInputElement>('song-start');
 const previewSongInput = $<HTMLInputElement>('preview-song');
+const volumeInput = $<HTMLInputElement>('song-volume');
+const fadeInInput = $<HTMLInputElement>('song-fade-in');
+const fadeOutInput = $<HTMLInputElement>('song-fade-out');
 
 function setStatus(text: string, isError = false): void {
   statusEl.textContent = text;
@@ -135,6 +146,19 @@ function render(s: AppState): void {
   timeline.update(s.clipDuration, s.inPoint, s.outPoint, s.playhead);
   player.setRange(s.inPoint, s.outPoint);
   player.setSongStart(s.songStart);
+  const mixLength = planDuration(s.inPoint, s.outPoint, s.songStart, s.songDuration).duration;
+  player.setSongMix(s.songVolume, s.songFadeIn, s.songFadeOut, Math.max(mixLength, 0));
+  waveform.update(s.songDuration, s.songStart, s.outPoint - s.inPoint);
+  if (document.activeElement !== songStartInput) songStartInput.value = formatMmSs(s.songStart);
+
+  volumeInput.value = String(Math.round(s.songVolume * 100));
+  fadeInInput.value = String(s.songFadeIn);
+  fadeOutInput.value = String(s.songFadeOut);
+  $('song-volume-readout').textContent = `${Math.round(s.songVolume * 100)}%`;
+  $('song-fade-in-readout').textContent = `${s.songFadeIn.toFixed(1)} s`;
+  $('song-fade-out-readout').textContent = `${s.songFadeOut.toFixed(1)} s`;
+  $('volume-hint').hidden = !s.songPath || s.songVolume <= 1;
+  for (const input of [volumeInput, fadeInInput, fadeOutInput]) input.disabled = !s.songPath;
 
   const warning = $('song-warning');
   if (s.clipPath && s.songPath) {
@@ -222,9 +246,10 @@ async function chooseSong(): Promise<void> {
       setStatus('That file has no audio stream.', true);
       return;
     }
-    store.set({ songPath: picked, songDuration: info.duration, songStart: 0 });
+    store.set({ songPath: picked, songDuration: info.duration, songStart: 0, ...DEFAULT_MIX });
     songStartInput.value = '0:00';
     player.setSong(picked);
+    void waveform.setSong(picked);
     setStatus('');
   } catch (error) {
     setStatus(errorText(error), true);
@@ -233,11 +258,12 @@ async function chooseSong(): Promise<void> {
 
 function clearSong(): void {
   if (store.get().busy) return;
-  store.set({ songPath: null, songDuration: 0, songStart: 0 });
+  store.set({ songPath: null, songDuration: 0, songStart: 0, ...DEFAULT_MIX });
   songStartInput.value = '0:00';
   previewSongInput.checked = false;
   player.setPreviewSong(false);
   player.setSong(null);
+  void waveform.setSong(null);
 }
 
 // ---- exporting -------------------------------------------------------------
@@ -263,6 +289,9 @@ async function runExport(): Promise<void> {
     inPoint: s.inPoint,
     outPoint: s.outPoint,
     songStart: s.songStart,
+    songVolume: s.songVolume,
+    songFadeIn: s.songFadeIn,
+    songFadeOut: s.songFadeOut,
     cropX: s.cropX,
     cropEnabled: s.cropEnabled,
     settings: s.settings,
@@ -354,6 +383,11 @@ $('set-out').addEventListener('click', setOutAtPlayhead);
 $('export').addEventListener('click', () => void runExport());
 $('cancel').addEventListener('click', () => void cancelExport());
 
+waveform.onStart = (songStart) => store.set({ songStart });
+volumeInput.addEventListener('input', () => store.set({ songVolume: Number(volumeInput.value) / 100 }));
+fadeInInput.addEventListener('input', () => store.set({ songFadeIn: Number(fadeInInput.value) }));
+fadeOutInput.addEventListener('input', () => store.set({ songFadeOut: Number(fadeOutInput.value) }));
+
 previewSongInput.addEventListener('change', () => player.setPreviewSong(previewSongInput.checked));
 
 songStartInput.addEventListener('change', () => {
@@ -368,7 +402,7 @@ songStartInput.addEventListener('change', () => {
 
 window.addEventListener('keydown', (event) => {
   if (event.ctrlKey || event.metaKey || event.altKey) return;
-  if (event.target instanceof HTMLInputElement && event.target.type === 'text') return;
+  if (event.target instanceof HTMLInputElement && ['text', 'range'].includes(event.target.type)) return;
   const arrow = event.key === 'ArrowLeft' || event.key === 'ArrowRight';
   if (event.repeat && !arrow) return;
   if (event.code === 'Space') {
