@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::io::{BufRead, BufReader};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -13,10 +13,59 @@ pub struct ExportState {
     cancelled: AtomicBool,
 }
 
+#[cfg(feature = "bundled")]
+mod embedded {
+    use std::path::PathBuf;
+    use std::sync::OnceLock;
+
+    // Compressed by build.rs; the *_LEN constants are the uncompressed sizes.
+    include!(concat!(env!("OUT_DIR"), "/embedded_lens.rs"));
+    static FFMPEG: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/ffmpeg.zst"));
+    static FFPROBE: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/ffprobe.zst"));
+
+    /// Decompresses the embedded tool to a per-version cache dir (once) and returns its path.
+    pub fn extract(tool: &str) -> Option<PathBuf> {
+        static FFMPEG_PATH: OnceLock<Option<PathBuf>> = OnceLock::new();
+        static FFPROBE_PATH: OnceLock<Option<PathBuf>> = OnceLock::new();
+        let (packed, len, cell) = match tool {
+            "ffmpeg" => (FFMPEG, FFMPEG_LEN, &FFMPEG_PATH),
+            "ffprobe" => (FFPROBE, FFPROBE_LEN, &FFPROBE_PATH),
+            _ => return None,
+        };
+        cell.get_or_init(|| {
+            let base = std::env::var_os("LOCALAPPDATA")
+                .map(PathBuf::from)
+                .unwrap_or_else(std::env::temp_dir);
+            let dir = base.join("videocut").join(concat!("bin-", env!("CARGO_PKG_VERSION")));
+            let path = dir.join(format!("{tool}.exe"));
+            let up_to_date = std::fs::metadata(&path).is_ok_and(|m| m.len() == len);
+            if !up_to_date {
+                std::fs::create_dir_all(&dir).ok()?;
+                let tmp = dir.join(format!("{tool}.exe.{}.tmp", std::process::id()));
+                let mut file = std::fs::File::create(&tmp).ok()?;
+                zstd::stream::copy_decode(packed, &mut file).ok()?;
+                drop(file);
+                std::fs::rename(&tmp, &path).ok()?;
+            }
+            Some(path)
+        })
+        .clone()
+    }
+}
+
+/// With the `bundled` feature: the embedded copy. Otherwise `tool` as found on PATH.
+fn tool_path(tool: &str) -> PathBuf {
+    #[cfg(feature = "bundled")]
+    if let Some(path) = embedded::extract(tool) {
+        return path;
+    }
+    PathBuf::from(tool)
+}
+
 /// A `Command` that does not flash a console window on Windows.
 pub fn command(tool: &str) -> Command {
     #[allow(unused_mut)]
-    let mut cmd = Command::new(tool);
+    let mut cmd = Command::new(tool_path(tool));
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -27,7 +76,7 @@ pub fn command(tool: &str) -> Command {
 
 pub fn spawn_error(tool: &str, err: std::io::Error) -> String {
     if err.kind() == std::io::ErrorKind::NotFound {
-        format!("{tool} was not found on PATH. Install FFmpeg and make sure `{tool}` works in a terminal.")
+        format!("{tool} was not found on PATH. Install FFmpeg and make sure `{tool}` works in a terminal, or use videocut_bundled.exe.")
     } else {
         format!("Could not start {tool}: {err}")
     }
@@ -163,5 +212,19 @@ mod tests {
     fn explains_a_missing_tool() {
         let err = std::io::Error::from(std::io::ErrorKind::NotFound);
         assert!(spawn_error("ffmpeg", err).contains("not found on PATH"));
+    }
+}
+
+#[cfg(all(test, feature = "bundled"))]
+mod bundled_tests {
+    use super::command;
+
+    #[test]
+    fn embedded_tools_run() {
+        for tool in ["ffmpeg", "ffprobe"] {
+            let out = command(tool).arg("-version").output().expect("spawn embedded tool");
+            assert!(out.status.success(), "{tool} -version failed");
+            assert!(String::from_utf8_lossy(&out.stdout).contains(tool));
+        }
     }
 }
