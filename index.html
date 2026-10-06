@@ -14,11 +14,12 @@
       </section>
 
       <section id="stage">
-        <video id="video" muted playsinline></video>
+        <video id="video" playsinline></video>
         <div id="crop" hidden></div>
       </section>
 
-      <section class="row">
+      <section class="transport-row">
+        <span id="time-readout">0:00.0</span>
         <div class="transport">
           <button id="btn-start" title="Jump to in point" aria-label="Jump to in point"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
           <button id="btn-back" title="Previous frame (Left arrow; Shift = 1 second)" aria-label="Previous frame"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg></button>
@@ -29,8 +30,7 @@
           <button id="btn-forward" title="Next frame (Right arrow; Shift = 1 second)" aria-label="Next frame"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.6 16.6 10 18l6-6-6-6-1.4 1.4 4.6 4.6z"/></svg></button>
           <button id="btn-end" title="Jump to out point" aria-label="Jump to out point"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg></button>
         </div>
-        <span id="time-readout">0:00.0</span>
-        <label><input id="crop-enabled" type="checkbox" checked /> Crop to 9:16</label>
+        <label class="crop-toggle"><input id="crop-enabled" type="checkbox" checked /> Crop to 9:16</label>
       </section>
 
       <section>
@@ -50,8 +50,9 @@
       </section>
 
       <section class="row">
-        <button id="open-song">Choose song…</button>
-        <span id="song-name">No song chosen</span>
+        <button id="open-song">Choose song… (optional)</button>
+        <span id="song-name">No song — the clip keeps its own audio</span>
+        <button id="clear-song" hidden>Remove song</button>
         <label>Start at <input id="song-start" value="0:00" size="6" /></label>
         <label><input id="preview-song" type="checkbox" /> Preview with song</label>
       </section>

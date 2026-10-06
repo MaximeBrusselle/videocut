@@ -14,4 +14,5 @@ export interface MediaInfo {
   duration: number;
   video: VideoInfo | null;
   hasAudio: boolean;
+  audioCodec: string | null;
 }

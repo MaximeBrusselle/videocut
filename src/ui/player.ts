@@ -161,6 +161,7 @@ export class Player {
 
   setSong(path: string | null): void {
     this.audio.pause();
+    this.video.muted = path !== null; // a song replaces the clip's own audio
     if (path) {
       this.audio.src = fileUrl(path);
       this.songUsable = true;

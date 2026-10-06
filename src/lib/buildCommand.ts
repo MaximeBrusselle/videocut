@@ -5,7 +5,8 @@ import type { VideoInfo } from './types';
 
 export interface ExportRequest {
   clipPath: string;
-  songPath: string;
+  /** null = no song: the clip keeps its own audio. */
+  songPath: string | null;
   outputPath: string;
   video: VideoInfo;
   songDuration: number;
@@ -16,6 +17,8 @@ export interface ExportRequest {
   cropX: number;
   /** When false the original frame is kept: no crop and no 1080x1920 scale. */
   cropEnabled: boolean;
+  /** Audio codec of the clip (from ffprobe), null when it has no audio. */
+  clipAudioCodec: string | null;
 }
 
 export interface DurationPlan {
@@ -35,6 +38,12 @@ export function planDuration(
   return { duration: Math.min(wanted, available), capped: available < wanted };
 }
 
+/** Output length in seconds: the clip range, capped by the song when there is one. */
+export function exportDuration(req: ExportRequest): number {
+  if (req.songPath === null) return req.outPoint - req.inPoint;
+  return planDuration(req.inPoint, req.outPoint, req.songStart, req.songDuration).duration;
+}
+
 /** Human-readable problems that make an export impossible; empty when fine. */
 export function validateRequest(req: ExportRequest): string[] {
   const errors: string[] = [];
@@ -44,10 +53,13 @@ export function validateRequest(req: ExportRequest): string[] {
   if (req.outPoint <= req.inPoint) {
     errors.push('The out point must be after the in point.');
   }
-  if (req.songStart >= req.songDuration) {
+  if (req.songPath !== null && req.songStart >= req.songDuration) {
     errors.push('The song start is past the end of the song.');
   }
-  if (samePath(req.outputPath, req.clipPath) || samePath(req.outputPath, req.songPath)) {
+  if (
+    samePath(req.outputPath, req.clipPath) ||
+    (req.songPath !== null && samePath(req.outputPath, req.songPath))
+  ) {
     errors.push('The output file must differ from the input files.');
   }
   return errors;
@@ -63,13 +75,15 @@ function videoFilter(req: ExportRequest): string {
 
 /** Full ffmpeg argument list (without the `ffmpeg` executable itself). */
 export function buildExportArgs(req: ExportRequest): string[] {
-  const { duration } = planDuration(req.inPoint, req.outPoint, req.songStart, req.songDuration);
+  const duration = exportDuration(req);
+  const song = req.songPath;
 
   const args = [
     '-y', '-hide_banner', '-loglevel', 'error', '-progress', 'pipe:1', '-nostats',
     '-ss', formatSeconds(req.inPoint), '-i', req.clipPath,
-    '-ss', formatSeconds(req.songStart), '-i', req.songPath,
-    '-map', '0:v:0', '-map', '1:a:0',
+    ...(song === null ? [] : ['-ss', formatSeconds(req.songStart), '-i', song]),
+    '-map', '0:v:0',
+    '-map', song === null ? '0:a:0?' : '1:a:0',
     '-vf', videoFilter(req),
     '-c:v', 'libx264', '-crf', '15', '-preset', 'slow', '-pix_fmt', 'yuv420p',
   ];
@@ -83,8 +97,12 @@ export function buildExportArgs(req: ExportRequest): string[] {
     if (value) args.push(flag, value);
   }
 
-  args.push('-c:a', 'aac', '-b:a', '256k');
-  if (duration >= 1) {
+  if (song === null && req.clipAudioCodec === 'aac') {
+    args.push('-c:a', 'copy');
+  } else {
+    args.push('-c:a', 'aac', '-b:a', '256k');
+  }
+  if (song !== null && duration >= 1) {
     args.push('-af', `afade=t=out:st=${formatSeconds(duration - 1)}:d=1`);
   }
   args.push('-t', formatSeconds(duration), '-movflags', '+faststart', req.outputPath);

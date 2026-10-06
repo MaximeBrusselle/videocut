@@ -5,6 +5,7 @@ export interface AppState {
   clipPath: string | null;
   clipDuration: number;
   video: VideoInfo | null;
+  clipAudioCodec: string | null;
   songPath: string | null;
   songDuration: number;
   inPoint: number;
@@ -21,6 +22,7 @@ export const store = createStore<AppState>({
   clipPath: null,
   clipDuration: 0,
   video: null,
+  clipAudioCodec: null,
   songPath: null,
   songDuration: 0,
   inPoint: 0,

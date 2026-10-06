@@ -57,6 +57,7 @@ pub struct MediaInfo {
     pub duration: f64,
     pub video: Option<VideoInfo>,
     pub has_audio: bool,
+    pub audio_codec: Option<String>,
 }
 
 fn parse_rate(rate: &str) -> f64 {
@@ -86,10 +87,12 @@ pub fn parse_probe(json: &str) -> Result<MediaInfo, String> {
         .and_then(|f| f.duration)
         .and_then(|d| d.parse::<f64>().ok())
         .ok_or("The file has no readable duration.")?;
-    let has_audio = raw
+    let audio_codec = raw
         .streams
         .iter()
-        .any(|s| s.codec_type.as_deref() == Some("audio"));
+        .find(|s| s.codec_type.as_deref() == Some("audio"))
+        .map(|s| s.codec_name.clone().unwrap_or_default());
+    let has_audio = audio_codec.is_some();
     let video = raw
         .streams
         .into_iter()
@@ -127,6 +130,7 @@ pub fn parse_probe(json: &str) -> Result<MediaInfo, String> {
         duration,
         video,
         has_audio,
+        audio_codec,
     })
 }
 
@@ -164,6 +168,7 @@ mod tests {
         let info = parse_probe(SAMPLE).unwrap();
         assert!((info.duration - 12.5).abs() < 1e-9);
         assert!(info.has_audio);
+        assert_eq!(info.audio_codec.as_deref(), Some("aac"));
         let v = info.video.unwrap();
         assert_eq!((v.width, v.height), (1920, 1080));
         assert!((v.fps - 29.97).abs() < 0.01);

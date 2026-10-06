@@ -29,17 +29,24 @@ describe.skipIf(!toolsAvailable)('export smoke test', () => {
   let dir: string;
   let clip: string;
   let song: string;
+  let clipWithAudio: string;
 
   beforeAll(() => {
     dir = mkdtempSync(join(tmpdir(), 'videocut-'));
     clip = join(dir, 'clip.mp4');
     song = join(dir, 'song.wav');
+    clipWithAudio = join(dir, 'clip-audio.mp4');
     execFileSync('ffmpeg', [
       '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=size=1920x1080:rate=30',
       '-t', '5', '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', clip,
     ]);
     execFileSync('ffmpeg', [
       '-v', 'error', '-y', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=8', song,
+    ]);
+    execFileSync('ffmpeg', [
+      '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=size=1920x1080:rate=30',
+      '-f', 'lavfi', '-i', 'sine=frequency=1000:duration=5', '-t', '5',
+      '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', clipWithAudio,
     ]);
   });
 
@@ -62,6 +69,7 @@ describe.skipIf(!toolsAvailable)('export smoke test', () => {
       songStart: 2,
       cropX: 100,
       cropEnabled: true,
+      clipAudioCodec: null,
       ...overrides,
     };
   }
@@ -79,6 +87,27 @@ describe.skipIf(!toolsAvailable)('export smoke test', () => {
     expect(video?.pix_fmt).toBe('yuv420p');
     expect(audio?.codec_name).toBe('aac');
     expect(info.streams).toHaveLength(2);
+    expect(Math.abs(Number(info.format.duration) - 3)).toBeLessThan(0.1);
+  });
+
+  it('exports a silent clip without a song as video only', () => {
+    const output = join(dir, 'silent.mp4');
+    execFileSync('ffmpeg', buildExportArgs(request(output, { songPath: null })));
+
+    const info = probe(output);
+    expect(info.streams.map((s) => s.codec_type)).toEqual(['video']);
+    expect(Math.abs(Number(info.format.duration) - 3)).toBeLessThan(0.1);
+  });
+
+  it('keeps the clip audio when there is no song', () => {
+    const output = join(dir, 'kept-audio.mp4');
+    execFileSync(
+      'ffmpeg',
+      buildExportArgs(request(output, { clipPath: clipWithAudio, songPath: null, clipAudioCodec: 'aac' })),
+    );
+
+    const info = probe(output);
+    expect(info.streams.find((s) => s.codec_type === 'audio')?.codec_name).toBe('aac');
     expect(Math.abs(Number(info.format.duration) - 3)).toBeLessThan(0.1);
   });
 

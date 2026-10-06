@@ -2,6 +2,7 @@ import { getCurrentWebview } from '@tauri-apps/api/webview';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import {
   buildExportArgs,
+  exportDuration,
   planDuration,
   validateRequest,
   type ExportRequest,
@@ -48,7 +49,7 @@ function render(s: AppState): void {
       : 'Drop a video here or click Open';
   $('song-name').textContent = s.songPath
     ? `${fileName(s.songPath)} (${formatMmSs(s.songDuration)})`
-    : 'No song chosen';
+    : 'No song — the clip keeps its own audio';
   $('time-readout').textContent = formatMmSs(s.playhead, 1);
   $('in-readout').textContent = formatMmSs(s.inPoint, 2);
   $('out-readout').textContent = formatMmSs(s.outPoint, 2);
@@ -68,7 +69,11 @@ function render(s: AppState): void {
     warning.hidden = true;
   }
 
-  $<HTMLButtonElement>('export').disabled = !(s.clipPath && s.songPath) || s.busy;
+  $('clear-song').hidden = !s.songPath;
+  songStartInput.disabled = !s.songPath;
+  previewSongInput.disabled = !s.songPath;
+
+  $<HTMLButtonElement>('export').disabled = !s.clipPath || s.busy;
   $('cancel').hidden = !s.busy;
   progressEl.hidden = !s.busy;
 }
@@ -95,6 +100,7 @@ async function openClip(path: string): Promise<void> {
       clipPath: path,
       clipDuration: info.duration,
       video: v,
+      clipAudioCodec: info.audioCodec,
       inPoint: 0,
       outPoint: info.duration,
       cropX: centeredCropX(v.width, v.height),
@@ -147,11 +153,20 @@ async function chooseSong(): Promise<void> {
   }
 }
 
+function clearSong(): void {
+  if (store.get().busy) return;
+  store.set({ songPath: null, songDuration: 0, songStart: 0 });
+  songStartInput.value = '0:00';
+  previewSongInput.checked = false;
+  player.setPreviewSong(false);
+  player.setSong(null);
+}
+
 // ---- exporting -------------------------------------------------------------
 
 async function runExport(): Promise<void> {
   const s = store.get();
-  if (!s.clipPath || !s.songPath || !s.video) return;
+  if (!s.clipPath || !s.video) return;
 
   const picked = await save({
     defaultPath: defaultOutputPath(s.clipPath),
@@ -171,6 +186,7 @@ async function runExport(): Promise<void> {
     songStart: s.songStart,
     cropX: s.cropX,
     cropEnabled: s.cropEnabled,
+    clipAudioCodec: s.clipAudioCodec,
   };
   const errors = validateRequest(request);
   if (errors.length > 0) {
@@ -178,7 +194,7 @@ async function runExport(): Promise<void> {
     return;
   }
 
-  const { duration } = planDuration(s.inPoint, s.outPoint, s.songStart, s.songDuration);
+  const duration = exportDuration(request);
   store.set({ busy: true });
   progressEl.value = 0;
   setStatus('Exporting…');
@@ -230,12 +246,14 @@ function stepFrames(direction: 1 | -1, large: boolean): void {
 const iconPlay = $('icon-play');
 const iconPause = $('icon-pause');
 player.onPlayState((playing) => {
-  iconPlay.hidden = playing;
-  iconPause.hidden = !playing;
+  // SVG elements have no .hidden property, so toggle the attribute directly.
+  iconPlay.toggleAttribute('hidden', playing);
+  iconPause.toggleAttribute('hidden', !playing);
 });
 
 $('open-video').addEventListener('click', () => void chooseClip());
 $('open-song').addEventListener('click', () => void chooseSong());
+$('clear-song').addEventListener('click', clearSong);
 $('play').addEventListener('click', () => player.toggle());
 $('btn-start').addEventListener('click', () => player.jumpToIn());
 $('btn-end').addEventListener('click', () => player.jumpToOut());

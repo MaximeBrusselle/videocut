@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildExportArgs, planDuration, validateRequest, type ExportRequest } from './buildCommand';
+import {
+  buildExportArgs,
+  exportDuration,
+  planDuration,
+  validateRequest,
+  type ExportRequest,
+} from './buildCommand';
 import type { VideoInfo } from './types';
 
 const video: VideoInfo = {
@@ -23,6 +29,7 @@ const base: ExportRequest = {
   songStart: 2,
   cropX: 100,
   cropEnabled: true,
+  clipAudioCodec: 'aac',
 };
 
 describe('planDuration', () => {
@@ -84,6 +91,40 @@ describe('buildExportArgs', () => {
   it('clamps the crop position inside the frame', () => {
     const args = buildExportArgs({ ...base, cropX: 5000 });
     expect(args[args.indexOf('-vf') + 1]).toBe('crop=606:ih:1314:0,scale=1080:1920:flags=lanczos,setsar=1');
+  });
+});
+
+describe('without a song', () => {
+  const noSong: ExportRequest = { ...base, songPath: null, songDuration: 0, songStart: 0 };
+
+  it('uses the clip length and ignores the song fields', () => {
+    expect(exportDuration(noSong)).toBe(3);
+    expect(exportDuration(base)).toBe(3);
+  });
+
+  it('copies AAC audio from the clip, with one input and no fade', () => {
+    const args = buildExportArgs(noSong);
+    expect(args.filter((a) => a === '-i')).toHaveLength(1);
+    expect(args).toContain('0:a:0?');
+    expect(args).not.toContain('1:a:0');
+    expect(args.slice(args.indexOf('-c:a'), args.indexOf('-c:a') + 2)).toEqual(['-c:a', 'copy']);
+    expect(args).not.toContain('-af');
+    expect(args[args.indexOf('-t') + 1]).toBe('3.000');
+  });
+
+  it('re-encodes clip audio that is not AAC', () => {
+    const args = buildExportArgs({ ...noSong, clipAudioCodec: 'opus' });
+    expect(args.slice(args.indexOf('-c:a'), args.indexOf('-c:a') + 4)).toEqual([
+      '-c:a', 'aac', '-b:a', '256k',
+    ]);
+  });
+
+  it('is valid without any song information', () => {
+    expect(validateRequest(noSong)).toEqual([]);
+  });
+
+  it('still refuses to overwrite the clip', () => {
+    expect(validateRequest({ ...noSong, outputPath: 'C:\\clips\\a.mp4' }).join(' ')).toMatch(/must differ/);
   });
 });
 
