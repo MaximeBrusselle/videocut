@@ -42,3 +42,7 @@ input[type='text'], #song-start { background: var(--panel); color: var(--text); 
 .transport-row .crop-toggle { justify-self: end; }
 #track { cursor: ew-resize; }
 #playhead::before { content: ""; position: absolute; top: -4px; left: 50%; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: #fff; }
+/* This is an app, not a document: no text selection or native dragging (both cancel pointer drags). */
+body { user-select: none; -webkit-user-select: none; }
+input[type='text'], #song-start { user-select: text; -webkit-user-select: text; }
+#stage, #stage video, #track, #track *, #crop { -webkit-user-drag: none; user-select: none; }

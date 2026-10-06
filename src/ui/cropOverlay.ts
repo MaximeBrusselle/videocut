@@ -18,6 +18,7 @@ export class CropOverlay {
     let startPointerX = 0;
     let startCropX = 0;
     this.box.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
       this.box.setPointerCapture(event.pointerId);
       startPointerX = event.clientX;
       startCropX = this.cropX;

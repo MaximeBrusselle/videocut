@@ -19,6 +19,7 @@ export class Timeline {
     // Press anywhere on the track to jump there, then keep dragging to scrub.
     this.track.addEventListener('pointerdown', (event) => {
       if (event.target !== this.track && event.target !== this.range) return;
+      event.preventDefault();
       this.track.setPointerCapture(event.pointerId);
       this.onSeek(this.timeAt(event.clientX));
     });
@@ -35,6 +36,7 @@ export class Timeline {
 
   private makeDraggable(handle: HTMLElement, callback: (time: number) => void): void {
     handle.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
       handle.setPointerCapture(event.pointerId);
       event.stopPropagation();
     });
