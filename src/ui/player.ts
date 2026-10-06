@@ -6,6 +6,7 @@ export class Player {
   private video = $<HTMLVideoElement>('video');
   private audio = $<HTMLAudioElement>('audio');
   private loaded = false;
+  private loadId = 0;
   private inPoint = 0;
   private outPoint = 0;
   private songStart = 0;
@@ -22,6 +23,7 @@ export class Player {
       this.loop();
     });
     this.video.addEventListener('pause', () => this.audio.pause());
+    this.video.addEventListener('ended', () => this.seek(this.inPoint));
     this.video.addEventListener('seeked', () => {
       this.emit();
       if (!this.video.paused) this.syncAudio();
@@ -43,7 +45,9 @@ export class Player {
   private loop = (): void => {
     this.emit();
     if (this.video.paused) return;
-    if (this.outPoint > 0 && this.video.currentTime >= this.outPoint) {
+    if (this.video.currentTime < this.inPoint - 0.05) {
+      this.seek(this.inPoint);
+    } else if (this.outPoint > 0 && this.video.currentTime >= this.outPoint) {
       this.video.pause();
       this.seek(this.inPoint);
       return;
@@ -53,17 +57,23 @@ export class Player {
 
   /** Loads the clip; falls back to a 540p proxy when the webview can't decode it. */
   async load(path: string, onStatus: (text: string) => void): Promise<void> {
+    const id = ++this.loadId;
     this.video.pause();
     this.video.removeAttribute('src');
     this.video.load();
     this.loaded = false;
     await clearProxy();
+    if (id !== this.loadId) return;
     try {
       await this.attach(fileUrl(path));
+      if (id !== this.loadId) return;
     } catch {
+      if (id !== this.loadId) return;
       onStatus('This codec cannot be previewed directly — generating a preview copy…');
       const proxy = await makeProxy(path);
+      if (id !== this.loadId) return;
       await this.attach(fileUrl(proxy));
+      if (id !== this.loadId) return;
       onStatus('Previewing a 540p copy; the export uses the original file.');
     }
     this.loaded = true;
