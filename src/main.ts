@@ -220,7 +220,10 @@ $<HTMLInputElement>('crop-enabled').addEventListener('change', (event) =>
   store.set({ cropEnabled: (event.target as HTMLInputElement).checked }),
 );
 
-timeline.onSeek = (time) => player.seek(time);
+timeline.onSeek = (time) => {
+  store.set({ playhead: time }); // move the playhead right away; the video catches up
+  player.seek(time);
+};
 timeline.onIn = (time) => {
   const { outPoint } = store.get();
   store.set({ inPoint: Math.min(time, outPoint - MIN_CLIP_SECONDS) });

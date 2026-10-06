@@ -16,10 +16,14 @@ export class Timeline {
   constructor() {
     this.makeDraggable(this.handleIn, (t) => this.onIn(t));
     this.makeDraggable(this.handleOut, (t) => this.onOut(t));
+    // Press anywhere on the track to jump there, then keep dragging to scrub.
     this.track.addEventListener('pointerdown', (event) => {
-      if (event.target === this.track || event.target === this.range) {
-        this.onSeek(this.timeAt(event.clientX));
-      }
+      if (event.target !== this.track && event.target !== this.range) return;
+      this.track.setPointerCapture(event.pointerId);
+      this.onSeek(this.timeAt(event.clientX));
+    });
+    this.track.addEventListener('pointermove', (event) => {
+      if (this.track.hasPointerCapture(event.pointerId)) this.onSeek(this.timeAt(event.clientX));
     });
   }
 
