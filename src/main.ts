@@ -267,6 +267,13 @@ player.onPlayState((playing) => {
 });
 
 $('open-video').addEventListener('click', () => void chooseClip());
+$('empty-state').addEventListener('click', () => void chooseClip());
+$('empty-state').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    void chooseClip();
+  }
+});
 $('open-song').addEventListener('click', () => void chooseSong());
 $('clear-song').addEventListener('click', clearSong);
 $('play').addEventListener('click', () => player.toggle());

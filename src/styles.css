@@ -66,6 +66,8 @@ input[type='text'] { user-select: text; -webkit-user-select: text; }
 
 /* Empty state sits behind the video and disappears once a clip is loaded */
 #empty-state { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.35rem; margin: 1rem; border: 2px dashed color-mix(in oklab, white 14%, transparent); border-radius: calc(var(--radius-box) - 0.25rem); color: color-mix(in oklab, var(--color-base-content) 55%, transparent); }
+#empty-state { z-index: 2; cursor: pointer; transition: border-color 0.15s, background-color 0.15s; }
+#empty-state:hover, #empty-state:focus-visible { outline: none; border-color: color-mix(in oklab, var(--color-primary) 60%, transparent); background-color: color-mix(in oklab, var(--color-primary) 6%, transparent); }
 #empty-state svg { width: 3rem; height: 3rem; fill: color-mix(in oklab, var(--color-primary) 70%, white); opacity: 0.8; margin-bottom: 0.5rem; }
 #empty-state strong { font-size: 1.05rem; font-weight: 600; color: var(--color-base-content); }
 #empty-state em { font-style: normal; color: var(--color-primary); }
