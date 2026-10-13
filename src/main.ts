@@ -337,7 +337,11 @@ $<HTMLInputElement>('crop-enabled').addEventListener('change', (event) =>
 
 timeline.onSeek = (time) => {
   store.set({ playhead: time }); // move the playhead right away; the video catches up
-  player.seek(time);
+  player.scrub(time);
+};
+timeline.onSeekEnd = (time) => {
+  store.set({ playhead: time });
+  player.endScrub(time);
 };
 timeline.onIn = (time) => {
   const { outPoint } = store.get();

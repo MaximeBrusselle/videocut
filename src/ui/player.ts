@@ -15,6 +15,8 @@ export class Player {
   private songFadeIn = 0;
   private songFadeOut = 0;
   private songLength = 0;
+  private scrubbing = false;
+  private pendingScrub: number | null = null;
   private previewSong = false;
   private songUsable = false;
   private listeners: Array<(time: number) => void> = [];
@@ -35,6 +37,15 @@ export class Player {
     });
     this.video.addEventListener('ended', () => this.seek(this.inPoint));
     this.video.addEventListener('seeked', () => {
+      if (this.scrubbing) {
+        // Keep the playhead under the pointer; just chase the newest requested time.
+        if (this.pendingScrub !== null) {
+          const next = this.pendingScrub;
+          this.pendingScrub = null;
+          this.video.currentTime = next;
+        }
+        return;
+      }
       this.emit();
       if (!this.video.paused) this.syncAudio();
     });
@@ -154,6 +165,28 @@ export class Player {
 
   seek(time: number): void {
     if (this.loaded) this.video.currentTime = time;
+  }
+
+  /**
+   * Seek for dragging: keeps one seek in flight and always jumps to the latest requested time when it
+   * lands, so frames keep appearing while the pointer moves instead of only after it stops.
+   */
+  scrub(time: number): void {
+    if (!this.loaded) return;
+    this.scrubbing = true;
+    if (this.video.seeking) {
+      this.pendingScrub = time;
+      return;
+    }
+    this.pendingScrub = null;
+    this.video.currentTime = time;
+  }
+
+  /** Ends a scrub with one exact seek to where the pointer was released. */
+  endScrub(time: number): void {
+    this.scrubbing = false;
+    this.pendingScrub = null;
+    this.seek(time);
   }
 
   get time(): number {

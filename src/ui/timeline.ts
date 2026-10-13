@@ -10,6 +10,7 @@ export class Timeline {
   private duration = 0;
 
   onSeek: (time: number) => void = () => {};
+  onSeekEnd: (time: number) => void = () => {};
   onIn: (time: number) => void = () => {};
   onOut: (time: number) => void = () => {};
 
@@ -26,6 +27,11 @@ export class Timeline {
     this.track.addEventListener('pointermove', (event) => {
       if (this.track.hasPointerCapture(event.pointerId)) this.onSeek(this.timeAt(event.clientX));
     });
+    const release = (event: PointerEvent) => {
+      if (this.track.hasPointerCapture(event.pointerId)) this.onSeekEnd(this.timeAt(event.clientX));
+    };
+    this.track.addEventListener('pointerup', release);
+    this.track.addEventListener('pointercancel', release);
   }
 
   private timeAt(clientX: number): number {
