@@ -20,6 +20,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+      # Pinned to the npm version that writes package-lock.json (npm run lock); lockfile layout differs between npm versions.
+      - run: npm install -g npm@11.19.0
       - run: npm ci
       - uses: tauri-apps/tauri-action@v0
         env:

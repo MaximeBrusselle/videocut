@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "lock": "npx -y npm@11.19.0 install --package-lock-only"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.1",
@@ -24,5 +25,6 @@
     "typescript": "^7.0.2",
     "vite": "^8.3.3",
     "vitest": "^5.0.3"
-  }
+  },
+  "packageManager": "npm@11.19.0"
 }
