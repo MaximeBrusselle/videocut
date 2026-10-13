@@ -33,6 +33,7 @@ import { formatMmSs, parseMmSs } from './lib/time';
 import { CropOverlay } from './ui/cropOverlay';
 import { Player } from './ui/player';
 import { Timeline } from './ui/timeline';
+import { initUpdater } from './ui/updater';
 import { Waveform } from './ui/waveform';
 
 const MIN_CLIP_SECONDS = 0.1;
@@ -438,3 +439,5 @@ void getCurrentWebview().onDragDropEvent((event) => {
     void openClip(event.payload.paths[0]);
   }
 });
+
+initUpdater();

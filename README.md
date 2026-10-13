@@ -102,6 +102,23 @@ A `bundled` cargo feature embeds zstd-compressed `ffmpeg` and `ffprobe` in the e
 npm run tauri build -- --features bundled
 ```
 
+### 🔄 Releases and auto-update
+
+Installed builds check GitHub Releases on startup and show an **Update** banner when a newer version exists. Clicking it downloads, installs and restarts.
+
+One-time setup:
+
+1. `npx tauri signer generate -w ~/.tauri/videocut.key` (the public key is already in `tauri.conf.json`)
+2. Add the private key as the repo secret `TAURI_SIGNING_PRIVATE_KEY` (and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` if you set one)
+
+To release, bump the version in `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`, then push a matching tag:
+
+```bash
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+The workflow builds the NSIS installer, signs it and publishes the release with `latest.json`.
+
 ### 🧪 Tests
 
 ```bash
@@ -148,7 +165,7 @@ Full design notes live in [`docs/superpowers/specs`](docs/superpowers/specs).
 ## 🚧 Limitations
 
 - One clip at a time
-- Windows only, no installer or auto-update
+- Windows only
 - Sources must be wider than 9:16
 - If the song is shorter than the selected range, the export is capped to the song length
 - Volume above 100% applies to the export only; the preview caps at 100%
