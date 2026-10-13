@@ -255,6 +255,9 @@ async function chooseSong(): Promise<void> {
     store.set({ songPath: picked, songDuration: info.duration, songStart: 0, ...DEFAULT_MIX });
     songStartInput.value = '0:00';
     player.setSong(picked);
+    previewSongInput.disabled = false;
+    previewSongInput.checked = true;
+    player.setPreviewSong(true);
     void waveform.setSong(picked);
     setStatus('');
   } catch (error) {

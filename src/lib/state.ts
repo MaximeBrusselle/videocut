@@ -38,7 +38,7 @@ export const store = createStore<AppState>({
   songFadeIn: DEFAULT_SONG_FADE_IN,
   songFadeOut: DEFAULT_SONG_FADE_OUT,
   cropX: 0,
-  cropEnabled: true,
+  cropEnabled: false,
   settings: { ...PRESETS[DEFAULT_PRESET].settings },
   playhead: 0,
   busy: false,
