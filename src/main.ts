@@ -33,6 +33,7 @@ import { formatMmSs, parseMmSs } from './lib/time';
 import { CropOverlay } from './ui/cropOverlay';
 import { Player } from './ui/player';
 import { Timeline } from './ui/timeline';
+import { initChangelog } from './ui/changelog';
 import { initUpdater } from './ui/updater';
 import { Waveform } from './ui/waveform';
 
@@ -470,3 +471,4 @@ void getCurrentWebview().onDragDropEvent((event) => {
 });
 
 initUpdater();
+initChangelog();
