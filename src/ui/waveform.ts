@@ -67,10 +67,13 @@ export class Waveform {
   }
 
   /** `position` is the song time (seconds) currently playing, or null to hide the indicator. */
-  update(songDuration: number, songStart: number, windowLength: number, position: number | null): void {
-    const showPlayhead = position !== null && songDuration > 0 && position <= songDuration;
-    this.playhead.hidden = !showPlayhead;
-    if (showPlayhead) this.playhead.style.left = `${(position / songDuration) * 100}%`;
+  setPosition(position: number | null): void {
+    const showPlayhead = position !== null && this.songDuration > 0 && position <= this.songDuration;
+    if (this.playhead.hidden === showPlayhead) this.playhead.hidden = !showPlayhead;
+    if (showPlayhead) this.playhead.style.left = `${(position / this.songDuration) * 100}%`;
+  }
+
+  update(songDuration: number, songStart: number, windowLength: number): void {
     this.wrap.hidden = songDuration <= 0;
     this.songDuration = songDuration;
     this.songStart = songStart;

@@ -8,6 +8,8 @@ export class Timeline {
   private handleOut = $('handle-out');
   private playhead = $('playhead');
   private duration = 0;
+  /** Track box, measured once per drag so pointer moves never force a layout. */
+  private box: DOMRect | null = null;
 
   onSeek: (time: number) => void = () => {};
   onSeekEnd: (time: number) => void = () => {};
@@ -22,6 +24,7 @@ export class Timeline {
       if (event.target !== this.track && event.target !== this.range) return;
       event.preventDefault();
       this.track.setPointerCapture(event.pointerId);
+      this.box = this.track.getBoundingClientRect();
       this.onSeek(this.timeAt(event.clientX));
     });
     this.track.addEventListener('pointermove', (event) => {
@@ -35,7 +38,7 @@ export class Timeline {
   }
 
   private timeAt(clientX: number): number {
-    const box = this.track.getBoundingClientRect();
+    const box = this.box ?? this.track.getBoundingClientRect();
     const fraction = Math.min(Math.max((clientX - box.left) / box.width, 0), 1);
     return fraction * this.duration;
   }
@@ -44,6 +47,7 @@ export class Timeline {
     handle.addEventListener('pointerdown', (event) => {
       event.preventDefault();
       handle.setPointerCapture(event.pointerId);
+      this.box = this.track.getBoundingClientRect();
       event.stopPropagation();
     });
     handle.addEventListener('pointermove', (event) => {
@@ -51,13 +55,19 @@ export class Timeline {
     });
   }
 
-  update(duration: number, inPoint: number, outPoint: number, playhead: number): void {
+  private percent(t: number): number {
+    return this.duration > 0 ? (t / this.duration) * 100 : 0;
+  }
+
+  update(duration: number, inPoint: number, outPoint: number): void {
     this.duration = duration;
-    const percent = (t: number) => (duration > 0 ? (t / duration) * 100 : 0);
-    this.handleIn.style.left = `${percent(inPoint)}%`;
-    this.handleOut.style.left = `${percent(outPoint)}%`;
-    this.range.style.left = `${percent(inPoint)}%`;
-    this.range.style.width = `${percent(outPoint) - percent(inPoint)}%`;
-    this.playhead.style.left = `${percent(playhead)}%`;
+    this.handleIn.style.left = `${this.percent(inPoint)}%`;
+    this.handleOut.style.left = `${this.percent(outPoint)}%`;
+    this.range.style.left = `${this.percent(inPoint)}%`;
+    this.range.style.width = `${this.percent(outPoint) - this.percent(inPoint)}%`;
+  }
+
+  setPlayhead(time: number): void {
+    this.playhead.style.left = `${this.percent(time)}%`;
   }
 }
