@@ -34,7 +34,9 @@ jobs:
           releaseBody: |
             ## Changes
 
-            - (edit these release notes; they appear in the in-app Changelog)
+            - Added an in-app changelog built from GitHub releases
+            - Export cancel now responds immediately
+            - UI tweaks to the player, timeline and waveform
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true
