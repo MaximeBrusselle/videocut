@@ -39,11 +39,9 @@ export class Player {
     this.video.addEventListener('seeked', () => {
       if (this.scrubbing) {
         // Keep the playhead under the pointer; just chase the newest requested time.
-        if (this.pendingScrub !== null) {
-          const next = this.pendingScrub;
-          this.pendingScrub = null;
-          this.video.currentTime = next;
-        }
+        const next = this.pendingScrub;
+        this.pendingScrub = null;
+        if (next !== null && next !== this.video.currentTime) this.video.currentTime = next;
         return;
       }
       this.emit();
@@ -179,7 +177,7 @@ export class Player {
       return;
     }
     this.pendingScrub = null;
-    this.video.currentTime = time;
+    if (time !== this.video.currentTime) this.video.currentTime = time;
   }
 
   /** Ends a scrub with one exact seek to where the pointer was released. */

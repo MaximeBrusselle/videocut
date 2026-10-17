@@ -21,7 +21,8 @@
         </div>
         <h1 class="text-lg font-semibold tracking-tight">Videocut</h1>
         <span id="clip-info" class="pill ml-1">Drop a video here or click Open</span>
-        <button id="open-video" class="btn btn-primary btn-sm ml-auto">
+        <button id="open-changelog" class="btn btn-ghost btn-sm ml-auto" title="What's new">Changelog</button>
+        <button id="open-video" class="btn btn-primary btn-sm">
           <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg>
           Open video
         </button>
@@ -142,6 +143,16 @@
         </section>
       </div>
     </main>
+    <dialog id="changelog-dialog" class="modal">
+      <div class="modal-box flex max-h-[80vh] max-w-xl flex-col gap-3">
+        <h2 class="text-lg font-semibold">Changelog</h2>
+        <div id="changelog-list" class="flex flex-col gap-4 overflow-y-auto"></div>
+        <div class="modal-action mt-0">
+          <button id="close-changelog" class="btn btn-sm">Close</button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop"><button aria-label="Close">close</button></form>
+    </dialog>
     <audio id="audio"></audio>
     <script type="module" src="/src/main.ts"></script>
   </body>

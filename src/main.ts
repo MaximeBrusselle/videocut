@@ -33,6 +33,7 @@ import { formatMmSs, parseMmSs } from './lib/time';
 import { CropOverlay } from './ui/cropOverlay';
 import { Player } from './ui/player';
 import { Timeline } from './ui/timeline';
+import { initChangelog } from './ui/changelog';
 import { initUpdater } from './ui/updater';
 import { Waveform } from './ui/waveform';
 
@@ -129,7 +130,35 @@ audioSelect.addEventListener('change', () => {
 
 // ---- rendering -------------------------------------------------------------
 
+const timeReadout = $('time-readout');
+
+/** The parts that follow the playhead; they change every frame while playing or scrubbing. */
+function renderPlayhead(s: AppState): void {
+  const time = formatMmSs(s.playhead, 1);
+  if (timeReadout.textContent !== time) timeReadout.textContent = time;
+  timeline.setPlayhead(s.playhead);
+  const inRange = s.clipPath !== null && s.playhead >= s.inPoint && s.playhead <= s.outPoint;
+  waveform.setPosition(inRange ? s.songStart + (s.playhead - s.inPoint) : null);
+}
+
+function onlyPlayheadChanged(previous: AppState, next: AppState): boolean {
+  for (const key of Object.keys(next) as Array<keyof AppState>) {
+    if (key !== 'playhead' && previous[key] !== next[key]) return false;
+  }
+  return true;
+}
+
+let rendered: AppState | null = null;
+
 function render(s: AppState): void {
+  // Skip the full UI pass for playhead-only updates, so scrubbing and playback touch a handful of nodes.
+  const playheadOnly = rendered !== null && onlyPlayheadChanged(rendered, s);
+  rendered = s;
+  if (!playheadOnly) renderAll(s);
+  renderPlayhead(s);
+}
+
+function renderAll(s: AppState): void {
   const v = s.video;
   $('clip-info').textContent =
     s.clipPath && v
@@ -138,24 +167,17 @@ function render(s: AppState): void {
   $('song-name').textContent = s.songPath
     ? `${fileName(s.songPath)} (${formatMmSs(s.songDuration)})`
     : 'No song — the clip keeps its own audio';
-  $('time-readout').textContent = formatMmSs(s.playhead, 1);
   $('in-readout').textContent = formatMmSs(s.inPoint, 2);
   $('out-readout').textContent = formatMmSs(s.outPoint, 2);
   $('len-readout').textContent = s.clipPath ? `Length ${formatMmSs(s.outPoint - s.inPoint, 2)}` : '';
 
   crop.update(v, s.cropX, s.cropEnabled);
-  timeline.update(s.clipDuration, s.inPoint, s.outPoint, s.playhead);
+  timeline.update(s.clipDuration, s.inPoint, s.outPoint);
   player.setRange(s.inPoint, s.outPoint);
   player.setSongStart(s.songStart);
   const mixLength = planDuration(s.inPoint, s.outPoint, s.songStart, s.songDuration).duration;
   player.setSongMix(s.songVolume, s.songFadeIn, s.songFadeOut, Math.max(mixLength, 0));
-  const inRange = s.clipPath !== null && s.playhead >= s.inPoint && s.playhead <= s.outPoint;
-  waveform.update(
-    s.songDuration,
-    s.songStart,
-    s.outPoint - s.inPoint,
-    inRange ? s.songStart + (s.playhead - s.inPoint) : null,
-  );
+  waveform.update(s.songDuration, s.songStart, s.outPoint - s.inPoint);
   if (document.activeElement !== songStartInput) songStartInput.value = formatMmSs(s.songStart);
 
   volumeInput.value = String(Math.round(s.songVolume * 100));
@@ -278,6 +300,8 @@ function clearSong(): void {
 
 // ---- exporting -------------------------------------------------------------
 
+let exportCancelled = false;
+
 async function runExport(): Promise<void> {
   const s = store.get();
   if (!s.clipPath || !s.video) return;
@@ -317,8 +341,9 @@ async function runExport(): Promise<void> {
   store.set({ busy: true });
   progressEl.value = 0;
   setStatus('Exporting…');
+  exportCancelled = false;
   const stopListening = await onProgress((percent) => {
-    progressEl.value = percent;
+    if (!exportCancelled) progressEl.value = percent;
   });
   try {
     await exportVideo(buildExportArgs(request), duration, outputPath);
@@ -395,7 +420,12 @@ $('btn-forward').addEventListener('click', () => stepFrames(1, false));
 $('set-in').addEventListener('click', setInAtPlayhead);
 $('set-out').addEventListener('click', setOutAtPlayhead);
 $('export').addEventListener('click', () => void runExport());
-$('cancel').addEventListener('click', () => void cancelExport());
+$('cancel').addEventListener('click', () => {
+  exportCancelled = true;
+  progressEl.value = 0;
+  setStatus('Cancelling…');
+  void cancelExport();
+});
 
 waveform.onStart = (songStart) => store.set({ songStart });
 volumeInput.addEventListener('input', () => store.set({ songVolume: Number(volumeInput.value) / 100 }));
@@ -441,3 +471,4 @@ void getCurrentWebview().onDragDropEvent((event) => {
 });
 
 initUpdater();
+initChangelog();
